@@ -12,6 +12,22 @@ C        DATE:    November 8, 1993
 C
 C        Revision History:
 C
+C        MODIFIED:   Modified to store additional variables needed
+C                    for MAXDCONT option when the URBAN option is 
+C                    being used.  Previous version could report
+C                    erroneous source group contributions in the
+C                    MAXDCONT file for any application that included
+C                    urban sources.
+C
+C                    Modified to only increment hour index and year
+C                    index if MAXDCONT option is being used. This
+C                    change avoids unnecessary runtime error if the
+C                    met data file includes a single hour beyond
+C                    the maximum number of years specified by the
+C                    NYEARS PARAMETER, which is initialized to 5 in 
+C                    the MAIN1 module.
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 12/19/2011
+C
 C        MODIFIED:   Modified code for setting the month, day, and hour 
 C                    for the "end of the year", based on the first hour
 C                    of the meteorological data file, to resolve potential 
@@ -536,9 +552,9 @@ C           of met data
          
       END IF
 
-C --- Index for hour-of-year and year to save met data for 
+C --- Increment index for hour-of-year and year to save met data for 
 C     MAXDCONT option
-      IF (FULLDATE .GE. ISDATE) THEN
+      IF (FULLDATE .GE. ISDATE .AND. L_MAXDCONT) THEN
          IHR_NDX = IHR_NDX + 1
          IYR_NDX = NUMYRS + 1
       
@@ -567,41 +583,30 @@ C ---    Store hourly met data to arrays for MAXDCONT option
             AOBULEN(IHR_NDX,IYR_NDX) =  OBULEN
             AVPTGZI(IHR_NDX,IYR_NDX) =  VPTGZI
             ASFCZ0(IHR_NDX,IYR_NDX)  =  SFCZ0 
-            ABOWEN(IHR_NDX,IYR_NDX)  =  BOWEN 
-            AALBEDO(IHR_NDX,IYR_NDX) =  ALBEDO
-            IAPCODE(IHR_NDX,IYR_NDX) =  IPCODE
-            APRATE(IHR_NDX,IYR_NDX)  =  PRATE 
-            ARH(IHR_NDX,IYR_NDX)     =  RH    
-            ASFCP(IHR_NDX,IYR_NDX)   =  SFCP  
-            NACLOUD(IHR_NDX,IYR_NDX) =  NCLOUD
-            AQSW(IHR_NDX,IYR_NDX)    =  QSW   
-            AWnew(IHR_NDX,IYR_NDX)   =  Wnew  
-            Af2(IHR_NDX,IYR_NDX)     =  f2    
-            AEsTa(IHR_NDX,IYR_NDX)   =  EsTa  
-            APrec1(IHR_NDX,IYR_NDX)  =  Prec1 
-            APrec2(IHR_NDX,IYR_NDX)  =  Prec2 
-            
-            ACLMHR(IHR_NDX,IYR_NDX)  =  CLMHR
-            AMSGHR(IHR_NDX,IYR_NDX)  =  MSGHR
-            AUNSTAB(IHR_NDX,IYR_NDX) =  UNSTAB
-            ASTABLE(IHR_NDX,IYR_NDX) =  STABLE
+            IF (LDGAS .OR. LDPART .OR. LWPART .OR. LWGAS) THEN
+               ABOWEN(IHR_NDX,IYR_NDX)  =  BOWEN 
+               AALBEDO(IHR_NDX,IYR_NDX) =  ALBEDO
+               IAPCODE(IHR_NDX,IYR_NDX) =  IPCODE
+               APRATE(IHR_NDX,IYR_NDX)  =  PRATE 
+               ARH(IHR_NDX,IYR_NDX)     =  RH    
+               ASFCP(IHR_NDX,IYR_NDX)   =  SFCP  
+               NACLOUD(IHR_NDX,IYR_NDX) =  NCLOUD
+               AQSW(IHR_NDX,IYR_NDX)    =  QSW   
+               AWnew(IHR_NDX,IYR_NDX)   =  Wnew  
+               Af2(IHR_NDX,IYR_NDX)     =  f2    
+               AEsTa(IHR_NDX,IYR_NDX)   =  EsTa  
+               APrec1(IHR_NDX,IYR_NDX)  =  Prec1 
+               APrec2(IHR_NDX,IYR_NDX)  =  Prec2 
+            END IF 
+            ARURUSTR(IHR_NDX,IYR_NDX)   = RURUSTR
+            ARUROBULEN(IHR_NDX,IYR_NDX) = RUROBULEN
+
+            ACLMHR(IHR_NDX,IYR_NDX)   =  CLMHR
+            AMSGHR(IHR_NDX,IYR_NDX)   =  MSGHR
+            AUNSTAB(IHR_NDX,IYR_NDX)  =  UNSTAB
+            ASTABLE(IHR_NDX,IYR_NDX)  =  STABLE
+            AURBSTAB(IHR_NDX,IYR_NDX) =  URBSTAB
                           
-            ANPLVLS(IHR_NDX,IYR_NDX) =  NPLVLS
-            
-C ---       Assign profile data
-            AIFLAG(IHR_NDX,1:NPLVLS,IYR_NDX) =  IFLAG(1:NPLVLS)
-            APFLHT(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLHT(1:NPLVLS)
-            APFLWD(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLWD(1:NPLVLS)
-            APFLWS(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLWS(1:NPLVLS)
-            APFLTA(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLTA(1:NPLVLS)
-            APFLSA(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLSA(1:NPLVLS)
-            APFLSV(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLSV(1:NPLVLS)
-            APFLSW(IHR_NDX,1:NPLVLS,IYR_NDX) =  PFLSW(1:NPLVLS)
-     
-            ANTGLVL(IHR_NDX,IYR_NDX) = NTGLVL 
-            APFLTG(IHR_NDX,1:NTGLVL,IYR_NDX)  =  PFLTG(1:NTGLVL) 
-            APFLTGZ(IHR_NDX,1:NTGLVL,IYR_NDX) =  PFLTGZ(1:NTGLVL)
-            
             ANDX4ZI(IHR_NDX,IYR_NDX) = NDX4ZI
             AUATZI(IHR_NDX,IYR_NDX)  = UATZI
             ASVATZI(IHR_NDX,IYR_NDX) = SVATZI
@@ -617,8 +622,12 @@ C ---       Assign profile data
             AGRIDSV(IHR_NDX,1:MXGLVL,IYR_NDX)   = GRIDSV(1:MXGLVL) 
             AGRIDTG(IHR_NDX,1:MXGLVL,IYR_NDX)   = GRIDTG(1:MXGLVL) 
             AGRIDPT(IHR_NDX,1:MXGLVL,IYR_NDX)   = GRIDPT(1:MXGLVL) 
-            AGRIDRHO(IHR_NDX,1:MXGLVL,IYR_NDX)  = GRIDRHO(1:MXGLVL)
-            AGRIDEPS(IHR_NDX,1:MXGLVL,IYR_NDX)  = GRIDEPS(1:MXGLVL)
+            IF (NSEC .GT. 0) THEN
+               AGRIDRHO(IHR_NDX,1:MXGLVL,IYR_NDX)  = GRIDRHO(1:MXGLVL)
+            END IF
+            IF (PVMRM) THEN
+               AGRIDEPS(IHR_NDX,1:MXGLVL,IYR_NDX)  = GRIDEPS(1:MXGLVL)
+            END IF
             IF (NURB .GT. 0) THEN
                AGRDSWR(IHR_NDX,1:MXGLVL,IYR_NDX) = GRDSWR(1:MXGLVL)  
                AGRDSVR(IHR_NDX,1:MXGLVL,IYR_NDX) = GRDSVR(1:MXGLVL) 
@@ -626,10 +635,17 @@ C ---       Assign profile data
                AGRDPTR(IHR_NDX,1:MXGLVL,IYR_NDX) = GRDPTR(1:MXGLVL) 
             
                DO I = 1, NURB 
-                AGRDSWU(IHR_NDX,1:MXGLVL,IYR_NDX,I) = GRDSWU(1:MXGLVL,I)
-                AGRDSVU(IHR_NDX,1:MXGLVL,IYR_NDX,I) = GRDSVU(1:MXGLVL,I)
-                AGRDTGU(IHR_NDX,1:MXGLVL,IYR_NDX,I) = GRDTGU(1:MXGLVL,I)
-                AGRDPTU(IHR_NDX,1:MXGLVL,IYR_NDX,I) = GRDPTU(1:MXGLVL,I)
+                  AGRDSWU(IHR_NDX,1:MXGLVL,IYR_NDX,I)=GRDSWU(1:MXGLVL,I)
+                  AGRDSVU(IHR_NDX,1:MXGLVL,IYR_NDX,I)=GRDSVU(1:MXGLVL,I)
+                  AGRDTGU(IHR_NDX,1:MXGLVL,IYR_NDX,I)=GRDTGU(1:MXGLVL,I)
+                  AGRDPTU(IHR_NDX,1:MXGLVL,IYR_NDX,I)=GRDPTU(1:MXGLVL,I)
+CRWB              Add variables for URBAN option
+                  AZIURB(IHR_NDX,IYR_NDX,I)     = ZIURB(I)
+                  AURBWSTR(IHR_NDX,IYR_NDX,I)   = URBWSTR(I)
+                  AURBUSTR(IHR_NDX,IYR_NDX,I)   = URBUSTR(I)
+                  AURBOBULEN(IHR_NDX,IYR_NDX,I) = URBOBULEN(I)
+CRWB              Also include L_MorningTrans array for urban morning transition
+                  AL_MorningTrans(IHR_NDX,IYR_NDX,I) = L_MorningTrans(I)
                END DO
             END IF
             
@@ -747,6 +763,9 @@ C     Select appropriate mixing height from convective and mechanical values
 C---- Set lower limit of 1.0 meter for mixing height
       IF (ZI.GE.0.0D0 .AND. ZI.LT.1.0D0) ZI = 1.0D0
 
+C --- Assign ZI to ZIRUR for URBAN option
+      IF (URBAN) ZIRUR = ZI
+
 C     Apply ROTANG Adjustment to Wind Direction
       IF (DABS(ROTANG) .GT. 0.0000001D0) THEN
          WDREF = WDREF - ROTANG
@@ -767,11 +786,15 @@ C     Apply ROTANG Adjustment to Wind Direction
 
 
 C---- Initialize urban stable flag to false.
-      URBSTAB = .FALSE.
+      IF(.NOT.L_SkipMessages) URBSTAB = .FALSE.
 
 C
 C---- Check the RUNERR flag - if it is FALSE, then there is sufficient
-C     data to continue processing the data
+C     data to continue processing the data.
+C     Also skip this IF-THEN block if L_SkipMessages is TRUE, which 
+C     indicates that this call is during the MAXDCONT "post-processing"
+C     stage since the gridded profiles and other data have been retrieved
+C     from arrays.
       IF( .NOT. RUNERR .AND. .NOT.L_SkipMessages )THEN
 C
          IF( .NOT. CLMHR  .AND.  .NOT. MSGHR )THEN
@@ -889,7 +912,6 @@ C              Compute gridded profile of epsilon for PVMRM option
 
 C              Compute Urban Profiles if Needed
                IF (URBAN) THEN
-                  ZIRUR = ZI
                   CALL URBCALC
                   CALL GRDURBAN
                END IF
@@ -897,9 +919,6 @@ C              Compute Urban Profiles if Needed
             END IF
 
          ENDIF
-
-C        Write every other level of gridded profile data to a file
-C        up to a height of 1000 m;
 
       END IF
 
@@ -990,7 +1009,7 @@ C           Input IYEAR must be 4-digit:  Save to IYR and convert to 2-digit
             IYR   = IYEAR
             IYEAR = IYR - 100 * (IYR/100)
          END IF
-     
+
 C ---    Save previous Julian Day value
          IF (JDAY .GE. 1) THEN
             JDAY_PREV = JDAY

@@ -26,8 +26,10 @@ C***********************************************************************
 
 C --- Most array limits for data storage are now allocated at runtime.
       INTEGER, PARAMETER :: NWSCAT= 6, NKST= 6, NHR= 24,
-     &                      NPAIR= 100, NHIANN= 10, NYEARS= 5,
+     &                      NPAIR= 100, NHIANN= 10, 
      &                      NMXPM= 10, MXPLVL=50, MXGLVL=87
+
+      INTEGER :: NYEARS
 
 C**   NWSCAT = Number of Wind Speed Categories
 C**   NKST   = Number of Stability Categories
@@ -36,14 +38,19 @@ C**   NPAIR  = Number of Pairs of TXCONC and IDCONC for TOXXFILE Output
 C**   NHIANN = Number of high period/annual averages to include in the
 C**                   summary page of the output file (formerly controlled
 C**                   by NVAL)
-C**   NYEARS = Number of Years allowed for multi-year analyses for PM2.5,
-C**                   1-hour NO2 and 1-hour SO2 standards, which are averaged
-C**                   over the number of years modeled
 C**   NMXPM  = Number of high average High-N-High 24-hour PM2.5 averages or
 C**                   High-N-High 1-hour NO2 or SO2 averages to include in the
 C**                   summary table for PM-2.5/NO2/SO2 processing across years
 C**   MXPLVL = Maximum number of levels in the observed profile file
 C**   MXGLVL = Maximum number of levels in the gridded profiles (0 - 4000 m)
+C**   NYEARS = Number of Years allowed for multi-year analyses for PM2.5,
+C**                   1-hour NO2 and 1-hour SO2 standards, which are averaged
+C**                   over the number of years modeled; a default value of 5
+C**                   years is assumed, but the user can override the default
+C**                   using the ME NUMYEARS keyword; e.g., setting NYEARS = 1
+C**                   on the ME NUMYEARS keyword for 1 year of site-specific
+C**                   met data will significantly reduce the memory requirements
+C**                   for the MAXDCONT option.
 
 C** The following array limits are set dynamically at runtime:
 C**   NSRC   = Max Number of Sources
@@ -71,8 +78,8 @@ C***********************************************************************
 C     Programmer Specified Model Parameters
 C***********************************************************************
 
-      INTEGER, PARAMETER :: IFMAX=150, IKN=90, ISTRG=512, ILEN_FLD=200,
-     &                      IERRN=243
+      INTEGER, PARAMETER :: IFMAX=150, IKN=91, ISTRG=512, ILEN_FLD=200,
+     &                      IERRN=246
 C*#
 
 C**   IFMAX  = Max Number of Fields Per Runstream Record
@@ -264,8 +271,8 @@ C***********************************************************************
      &        FASTAREA, FASTALL, L_NonDFAULT, 
      &        SCREEN, URBSTAB, PRM_FSTREC, ROMBERG,
      &        PVMRM, PSDCREDIT, OLM, O3FILE, L_MULTURB, 
-     &        L_PRESET_URBAN, L_UrbanTransition, 
-     &        BETA
+     &        L_PRESET_URBAN, L_UrbanTransition, L_URBAN_ALL,
+     &        BETA, MAXDWARN
 C*#
 
       LOGICAL :: L_EFFSIGY
@@ -404,7 +411,8 @@ C**   NVMAX2= NVMAX * 2
       LOGICAL LSEG
 
       INTEGER :: IVERT, NVERT, NSEGS,
-     &           NVMAX, NVMAX2, NPIT, NAREA, NPOLY, NVTEMP, NCIRC, 
+     &           NVMAX, NVMAX2, NPIT, NPNT, NVOL, 
+     &           NAREA, NPOLY, NVTEMP, NCIRC, 
      &           NPTEMP
       DOUBLE PRECISION, ALLOCATABLE :: UVERT(:), VVERT(:), VNVERT(:),
      &                                 WVERT(:), UASEGS(:), UBSEGS(:),
@@ -572,9 +580,10 @@ C***********************************************************************
      &        RUNERR, PFLERR, ENDMON, METHDR,
      &        HOURLY, L_DayOfWeekOpts
 
-      LOGICAL, ALLOCATABLE :: L_MorningTrans(:),
+      LOGICAL, ALLOCATABLE :: L_MorningTrans(:), AL_MorningTrans(:,:,:),
      &                        ACLMHR(:,:), AMSGHR(:,:),
-     &                        ASTABLE(:,:), AUNSTAB(:,:)
+     &                        ASTABLE(:,:), AUNSTAB(:,:),
+     &                        AURBSTAB(:,:)
       
       INTEGER ::  KSTMSG
       INTEGER ::  IHOUR, IYEAR, IMONTH, IDAY, KURDAT, JDAY, ISEAS,
@@ -627,7 +636,9 @@ C***********************************************************************
      &                                 APFLSV(:,:,:), APFLTG(:,:,:),
      &                                 APFLTGZ(:,:,:)
 
-      INTEGER, ALLOCATABLE :: AIFLAG(:,:,:), ANPLVLS(:,:), ANTGLVL(:,:)
+      INTEGER, ALLOCATABLE :: AIFLAG(:,:,:)
+      
+      INTEGER, ALLOCATABLE :: ANPLVLS(:,:), ANTGLVL(:,:)
       
       DOUBLE PRECISION :: GRIDHT(MXGLVL), GRIDWD(MXGLVL), 
      &                    GRIDWS(MXGLVL), GRIDSW(MXGLVL), 
@@ -663,7 +674,13 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
       DOUBLE PRECISION, ALLOCATABLE :: AGRDSWU(:,:,:,:), 
      &                                 AGRDSVU(:,:,:,:),
      &                                 AGRDTGU(:,:,:,:), 
-     &                                 AGRDPTU(:,:,:,:)
+     &                                 AGRDPTU(:,:,:,:),
+     &                                 AZIURB(:,:,:),
+     &                                 AURBWSTR(:,:,:),
+     &                                 AURBUSTR(:,:,:),
+     &                                 AURBOBULEN(:,:,:),
+     &                                 ARURUSTR(:,:), 
+     &                                 ARUROBULEN(:,:)
 
       DOUBLE PRECISION :: TG4PFL, TG4XTR,
      &                    THSTAR, SVAVG, SWAVG, UAVG,
@@ -749,7 +766,7 @@ C***********************************************************************
       INTEGER :: IREC,   ISRC,   IGRP,   IAVE,   ITYP,  ISET,
      &           NUMREC, NUMSRC, NUMGRP, NUMAVE, NUMARC, NUMTYP,
      &           NUMCAP, NUMHOR, NUMFLAT, IBKGRD, IO3SET,
-     &           NUMYR,  ICYEAR, NURBSRC, NUMURB, NPD, IFVSEC,
+     &           ICYEAR, NURBSRC, NUMURB, NPD, IFVSEC,
      &           IUCAT, IOLM, NUMOLM, IPSD, NUMPSD, IURB
       DOUBLE PRECISION :: XS, YS, ZS, QS, HS, DS, VS, TS, SYINIT,
      &                    SZINIT, XINIT, YINIT, ANGLE, XCNTR, YCNTR,
@@ -867,7 +884,7 @@ C***********************************************************************
 C     This is The Global Variable Definition Block for OUtput Pathway
 C***********************************************************************
 
-      LOGICAL OUTPART, SUMMFILE, L_NoHeader(8)
+      LOGICAL OUTPART, SUMMFILE, L_NoHeader(8), EVALFIL, TOXXFIL
 
       LOGICAL, ALLOCATABLE :: ANPART(:), ALLPARTS(:), ALLPARTG(:)
 
@@ -1022,7 +1039,7 @@ C***********************************************************************
 
 C---- VERSN is now a 6-character variable to accomodate leading qualifier
 C     character, such as 'B' for Beta version or 'D' for Draft version.
-      DATA VERSN /' 11103'/
+      DATA VERSN /' 12060'/
 
 
 C***********************************************************************
@@ -1059,11 +1076,11 @@ C***********************************************************************
      &   'INCLUDED','EVENTPER','EVENTLOC','GRIDCART','GRIDPOLR',
      &   'DISCCART','DISCPOLR','EVALCART','SURFFILE','PROFFILE',
      &   'PROFBASE','SURFDATA','UAIRDATA','SITEDATA','STARTEND',
-     &   'DAYRANGE','SCIMBYHR','WDROTATE','WINDCATS','RECTABLE',
-     &   'MAXTABLE','DAYTABLE','SUMMFILE','MAXIFILE','POSTFILE',
-     &   'PLOTFILE','TOXXFILE','SEASONHR','EVENTOUT','RANKFILE',
-     &   'EVALFILE','FILEFORM','MAXDAILY','MXDYBYYR','MAXDCONT',
-     &   'NOHEADER'/
+     &   'DAYRANGE','SCIMBYHR','WDROTATE','WINDCATS','NUMYEARS',
+     &   'RECTABLE','MAXTABLE','DAYTABLE','SUMMFILE','MAXIFILE',
+     &   'POSTFILE','PLOTFILE','TOXXFILE','SEASONHR','EVENTOUT',
+     &   'RANKFILE','EVALFILE','FILEFORM','MAXDAILY','MXDYBYYR',
+     &   'MAXDCONT','NOHEADER'/
 
 
 C***********************************************************************
@@ -1148,6 +1165,7 @@ C                9 = sitedata
 C               10 = profbase
 C               11 = windcats
 C               12 = scimbyhr
+C               13 = numyears
 C               50 = finished
 C    
 C     IOSTAT:    1 = starting            IOSTAT:     1 = starting
@@ -1623,7 +1641,7 @@ C***********************************************************************
       DATA ERRCOD(213)/'475'/,
      & ERRMSG(213)/'WS reference height is higher than 100m.  KURDAT ='/
       DATA ERRCOD(214)/'480'/,
-     & ERRMSG(214)/'Less than 1 year for MULTYEAR or ANNUAL Averages  '/
+     & ERRMSG(214)/'Less than 1yr for MULTYEAR, MAXDCONT or ANNUAL Ave'/
       DATA ERRCOD(215)/'481'/,
      & ERRMSG(215)/'Data Remaining After End of Year. Number of Hours='/
       DATA ERRCOD(216)/'482'/,
@@ -1683,6 +1701,14 @@ C***********************************************************************
      & ERRMSG(242)/'MAXIFILE includes data past start of MULTYEAR run '/
       DATA ERRCOD(243)/'593'/,
      & ERRMSG(243)/'POSTFILE includes data past start of MULTYEAR run '/
+
+C --- New messages:
+      DATA ERRCOD(244)/'273'/,
+     & ERRMSG(244)/'Range of ranks for MAXDCONT THRESH Opt is limited:'/
+      DATA ERRCOD(245)/'279'/,
+     & ERRMSG(245)/'Multiple URBANOPT/URBANSRC inputs not allowed for:'/
+      DATA ERRCOD(246)/'498'/,
+     & ERRMSG(246)/'Possible code ERROR!!! MAXDCONT mismatch for GRPID'/
 
       END MODULE MAIN1
 

@@ -218,7 +218,16 @@ C        PROGRAMMER: Jeff Wang, Roger Brode
 C
 C        DATE:    March 2, 1992
 C
-C        MODIFIED:  Corrected write statement for message '540'
+C        MODIFIED:  Included logical variable PLFILE for PLOTFILEs
+C                   in the check for output file options that use
+C                   the FILEFORM keyword specifying whether
+C                   fixed-format or exp-format is used. Previous
+C                   version erroneously issued warning message '399'
+C                   if PLOTFILE was the only relevant output option
+C                   used with the OU FILEFORM keyword.
+C                   R.W. Brode, U.S. EPA/OAQPS/AQMG, 12/19/2011
+C
+C                   Corrected write statement for message '540'
 C                   to accommodate MONTH average option, labeled
 C                   as 720-hr option.  Also modified to include 
 C                   error checking for file name and file unit 
@@ -319,7 +328,8 @@ C     Check for EVALFILE Option without EVALCART Inputs
 
 C --- Check for FILEFORM keyword without applicable output file options
       IF (IOSTAT(13) .GT. 0 .AND. FILE_FORMAT .EQ. 'EXP') THEN
-         IF (.NOT.MXFILE .AND. .NOT.PPFILE .AND. .NOT.RKFILE .AND.
+         IF (.NOT.MXFILE .AND. .NOT.PPFILE .AND. .NOT.PLFILE .AND.
+     &       .NOT.RKFILE .AND.
      &       .NOT.ANPOST .AND. .NOT.ANPLOT .AND. .NOT.SEASONHR .AND.
      &       .NOT.MXDAILY .AND. .NOT.MXDAILY_BYYR .AND. 
      &                                            .NOT.L_MAXDCONT) THEN
@@ -2810,8 +2820,9 @@ C     Variable Declarations
       LOGICAL FOUND
 
 C     Variable Initializations
-      MODNAM = 'OUEVAL'
-      INDSRC = 0
+      MODNAM  = 'OUEVAL'
+      INDSRC  = 0
+      EVALFIL = .TRUE.
 
 C     Check If Enough Fields
       IF (IFC .EQ. 2) THEN
@@ -3605,6 +3616,21 @@ C        PROGRAMMER: Roger Brode
 C
 C        DATE:       February 28, 2011
 C
+C        MODIFIED:   Modified to include checks on the use of a limited 
+C                    range of ranks (specified on the OU RECTABLE keyword) 
+C                    with the THRESH option on the OU MAXDCONT keyword. 
+C                    A fatal error message is generated if the range of ranks 
+C                    specified is less than or equal to the design value rank for 
+C                    the specified pollutant plus 4, i.e., a fatal error will be 
+C                    generated if the range of ranks is less than or equal to 8 
+C                    for 1-hr SO2, or less than or equal to 12 for 1-hr NO2 or 
+C                    24-hr PM2.5. A non-fatal warning message is also generated 
+C                    if the range of ranks is less than or equal to the design 
+C                    value rank plus 20, i.e., if the range of ranks is less than 
+C                    or equal to 24 for 1-hr SO2, or less than or equal to 28 for 
+C                    1-hr NO2 or 24-hr PM2.5.
+C                    R. Brode, US EPA, OAQPS, AQMG, 02/29/2012
+C
 C        INPUTS:  Input Runstream Parameters
 C
 C        OUTPUTS: Output Option Switches
@@ -3762,6 +3788,24 @@ C           Dynamically Allocate File Unit (700's)
 C              WRITE Warning Message: Dynamic Unit Allocation May Have Conflict
                CALL ERRHDL(PATH,MODNAM,'W','565',KEYWRD)
             END IF
+         END IF
+
+C ---    Check for use of MAXDCONT THRESH option with limited range of 
+C        ranks on RECTABLE keyword
+         IF ( (SO2AVE .AND. NHIVAL.LE. 8) .OR. 
+     &        (NO2AVE .AND. NHIVAL.LE.12) .OR.
+     &       (PM25AVE .AND. NHIVAL.LE.12) ) THEN
+C ---       NHIVAL is less than or equal to the design value rank + 4
+C           for the THRESH option; issue fatal ERROR message 
+            WRITE(DUMMY,'(''Max Rank ='',I2)') NHIVAL
+            CALL ERRHDL(PATH,MODNAM,'E','273',DUMMY)
+         ELSE IF ( (SO2AVE .AND. NHIVAL.LE.24) .OR. 
+     &             (NO2AVE .AND. NHIVAL.LE.28) .OR.
+     &            (PM25AVE .AND. NHIVAL.LE.28) ) THEN
+C ---       NHIVAL is less than or equal to the design value rank + 20
+C           for the THRESH option; issue non-fatal WARNING message 
+            WRITE(DUMMY,'(''Max Rank ='',I2)') NHIVAL
+            CALL ERRHDL(PATH,MODNAM,'W','273',DUMMY)
          END IF
 
       ELSE

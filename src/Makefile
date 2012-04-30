@@ -2,7 +2,7 @@ FC=gfortran
 FCFLAGS=-c -fcheck=bounds -O2 -mtune=native
 LDFLAGS=
 
-OBJECTS=modules.o evcalc.o inpsum.o ouset.o prise.o sigmas.o calc1.o evoutput.o  meset.o output.o reset.o soset.o calc2.o evset.o metext.o pitarea.o setup.o tempgrid.o coset.o iblval.o prime.o siggrid.o windgrid.o aermod.o 
+OBJECTS=modules.o aermod.o setup.o coset.o soset.o reset.o meset.o ouset.o inpsum.o metext.o iblval.o siggrid.o tempgrid.o windgrid.o calc1.o calc2.o prise.o prime.o sigmas.o pitarea.o output.o evset.o evcalc.o evoutput.o
 
 all: $(OBJECTS)
 	$(FC) $(LDFLAGS) $(OBJECTS) -o aermod

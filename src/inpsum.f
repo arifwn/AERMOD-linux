@@ -769,11 +769,19 @@ C ---    Write message regarding MULTYEAR applications
 C***********************************************************************
 C                 PRTO3VALS Module of the AMS/EPA Regulatory Model - AERMOD
 C
-C        PURPOSE: Print Out The Input Source Data Summary
+C        PURPOSE: Print Out The O3VALUES Input Data Summary
 C
 C        PROGRAMMER: Roger Brode
 C
 C        DATE:       February 28, 2011
+C
+C        MODIFIED: Corrected code to use the O3FLAG variable which
+C                  identifies the user-specified option for defining
+C                  temporally-varying background ozone concentrations.
+C                  The previous version erroneously referenced the
+C                  BFLAG variable associated with user-specified 
+C                  BACKGROUND concentrations.
+C                  R. W. Brode, U.S. EPA, OAQPS, AQMG, 12/19/2011
 C
 C        INPUTS:  Model Options and Keyword Summarys
 C
@@ -803,29 +811,29 @@ C     Variable Initializations
       MODNAM = 'PRTO3VALS'
 
 
-C     Print User-specified Background Concetrations
-      IF (BFLAG .EQ. 'ANNUAL') THEN
+C     Print User-specified Background Ozone Concetrations
+      IF (O3FLAG .EQ. 'ANNUAL') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,9001) OzoneUnits
          WRITE(IOUNIT,9006) O3VARY(1)
-      ELSE IF (BFLAG .EQ. 'SEASON') THEN
+      ELSE IF (O3FLAG .EQ. 'SEASON') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,9002) OzoneUnits
          WRITE(IOUNIT,9004) (SEASON(I1),I1=1,4)
          WRITE(IOUNIT,9006) (O3VARY(I1),I1=1,4)
-      ELSE IF (BFLAG .EQ. 'MONTH') THEN
+      ELSE IF (O3FLAG .EQ. 'MONTH') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,9007) OzoneUnits
          WRITE(IOUNIT,9008)
          WRITE(IOUNIT,9013)
          WRITE(IOUNIT,9010) (O3VARY(I1),I1=1,12)
-      ELSE IF (BFLAG .EQ. 'HROFDY') THEN
+      ELSE IF (O3FLAG .EQ. 'HROFDY') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,9011) OzoneUnits
          WRITE(IOUNIT,9012)
          WRITE(IOUNIT,9013)
          WRITE(IOUNIT,9014) (I1,O3VARY(I1),I1=1,24)
-      ELSE IF (BFLAG .EQ. 'SEASHR') THEN
+      ELSE IF (O3FLAG .EQ. 'SEASHR') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,9018) OzoneUnits
          WRITE(IOUNIT,9012)
@@ -835,7 +843,7 @@ C     Print User-specified Background Concetrations
             WRITE(IOUNIT,9019) SEASON(I1)
             WRITE(IOUNIT,9014) (I2,O3VARY(I2+IFR),I2=1,24)
          END DO
-      ELSE IF (BFLAG .EQ. 'HRDOW') THEN
+      ELSE IF (O3FLAG .EQ. 'HRDOW') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,99218) OzoneUnits
          WRITE(IOUNIT,99012)
@@ -845,7 +853,7 @@ C     Print User-specified Background Concetrations
             WRITE(IOUNIT,99021) DAYOFWEEK(I1)
             WRITE(IOUNIT,99014) (I3,O3VARY(I3+IDW),I3=1,24)
          END DO
-      ELSE IF (BFLAG .EQ. 'HRDOW7') THEN
+      ELSE IF (O3FLAG .EQ. 'HRDOW7') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,79218) OzoneUnits
          WRITE(IOUNIT,99012)
@@ -855,7 +863,7 @@ C     Print User-specified Background Concetrations
             WRITE(IOUNIT,99021) DAYOFWEEK7(I1)
             WRITE(IOUNIT,99014) (I3,O3VARY(I3+IDW),I3=1,24)
          END DO
-      ELSE IF (BFLAG .EQ. 'SHRDOW') THEN
+      ELSE IF (O3FLAG .EQ. 'SHRDOW') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,99018) OzoneUnits
          WRITE(IOUNIT,99012)
@@ -868,7 +876,7 @@ C     Print User-specified Background Concetrations
                WRITE(IOUNIT,99014) (I3,O3VARY(I3+IFR+IDW),I3=1,24)
             END DO
          END DO
-      ELSE IF (BFLAG .EQ. 'SHRDOW7') THEN
+      ELSE IF (O3FLAG .EQ. 'SHRDOW7') THEN
          CALL HEADER(IOUNIT)
          WRITE(IOUNIT,79018) OzoneUnits
          WRITE(IOUNIT,99012)
@@ -881,7 +889,7 @@ C     Print User-specified Background Concetrations
                WRITE(IOUNIT,99014) (I3,O3VARY(I3+IFR+IDW),I3=1,24)
             END DO
          END DO
-      ELSE IF (BFLAG .EQ. 'MHRDOW') THEN
+      ELSE IF (O3FLAG .EQ. 'MHRDOW') THEN
          DO I1 = 1, 3
             CALL HEADER(IOUNIT)
             WRITE(IOUNIT,99118) OzoneUnits
@@ -894,7 +902,7 @@ C     Print User-specified Background Concetrations
                WRITE(IOUNIT,99014) (I3,O3VARY(I3+IFR+IDW),I3=1,24)
             END DO
          END DO
-      ELSE IF (BFLAG .EQ. 'MHRDOW7') THEN
+      ELSE IF (O3FLAG .EQ. 'MHRDOW7') THEN
          DO I1 = 1, 7
             CALL HEADER(IOUNIT)
             WRITE(IOUNIT,79118) OzoneUnits

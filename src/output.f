@@ -2924,6 +2924,12 @@ C        PROGRAMMER: Roger Brode
 C
 C        DATE:       February 28, 2011
 C
+C        MODIFIED:   Check for whether the HOURLY emissions option is used 
+C                    for specific sources to correct a bug in the MAXDCONT
+C                    option for applications that include hourly emissions 
+C                    (HOUREMIS) for at least one source, but not all sources. 
+C                    R. Brode, US EPA, OAQPS, AQMG, 02/29/2012
+C
 C        INPUTS:  MAXDAILY file options
 C
 C        OUTPUTS: 
@@ -2966,21 +2972,24 @@ C     Save ILINE as ILSAVE and Initialize ILINE
 C        Process Hourly Emissions from File
 C        Begin Source Loop
          DO ISRC = 1, NUMSRC
-C ---       Retrieve hourly emissions for MAXDCONT option
-            AQS(ISRC) = AAQS(IHR_NDX,IYR_NDX,ISRC)
-      
-            IF (SRCTYP(ISRC)(1:5) .EQ. 'POINT') THEN
-               ATS(ISRC) =  AATS(IHR_NDX,IYR_NDX,ISRC)
-               AVS(ISRC) =  AAVS(IHR_NDX,IYR_NDX,ISRC)
-            ELSE IF (SRCTYP(ISRC) .EQ. 'VOLUME' .AND. 
-     &                                  L_HRLYSIG(ISRC)) THEN
-               AHS(ISRC)    =  AAHS(IHR_NDX,IYR_NDX,ISRC)   
-               ASYINI(ISRC) =  AASYINI(IHR_NDX,IYR_NDX,ISRC)
-               ASZINI(ISRC) =  AASZINI(IHR_NDX,IYR_NDX,ISRC)
-            ELSE IF (SRCTYP(ISRC)(1:4) .EQ. 'AREA' .AND. 
-     &                                  L_HRLYSIG(ISRC)) THEN
-               AHS(ISRC)    =  AAHS(IHR_NDX,IYR_NDX,ISRC)   
-               ASZINI(ISRC) =  AASZINI(IHR_NDX,IYR_NDX,ISRC)
+C ---       Check for HOURLY emissions for this source
+            IF (QFLAG(ISRC) .EQ. 'HOURLY') THEN
+C ---          Retrieve hourly emissions for MAXDCONT option
+               AQS(ISRC) = AAQS(IHR_NDX,IYR_NDX,ISRC)
+         
+               IF (SRCTYP(ISRC)(1:5) .EQ. 'POINT') THEN
+                  ATS(ISRC) =  AATS(IHR_NDX,IYR_NDX,ISRC)
+                  AVS(ISRC) =  AAVS(IHR_NDX,IYR_NDX,ISRC)
+               ELSE IF (SRCTYP(ISRC) .EQ. 'VOLUME' .AND. 
+     &                                     L_HRLYSIG(ISRC)) THEN
+                  AHS(ISRC)    =  AAHS(IHR_NDX,IYR_NDX,ISRC)   
+                  ASYINI(ISRC) =  AASYINI(IHR_NDX,IYR_NDX,ISRC)
+                  ASZINI(ISRC) =  AASZINI(IHR_NDX,IYR_NDX,ISRC)
+               ELSE IF (SRCTYP(ISRC)(1:4) .EQ. 'AREA' .AND. 
+     &                                     L_HRLYSIG(ISRC)) THEN
+                  AHS(ISRC)    =  AAHS(IHR_NDX,IYR_NDX,ISRC)   
+                  ASZINI(ISRC) =  AASZINI(IHR_NDX,IYR_NDX,ISRC)
+               END IF
             END IF
          END DO
 C*       End Source Loop

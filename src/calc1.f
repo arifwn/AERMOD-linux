@@ -5098,85 +5098,105 @@ C        set to a minimum value earlier on.
       RETURN
       END
 
-
-      SUBROUTINE LTOPG(ISTAB)
-C***********************************************************************
-C               LTOPG Module of AERMOD Model
+      SUBROUTINE LTOPG(LSTAB)
+C-----------------------------------------------------------------------
+C                LTOPG Module of AERMOD Model
 C
-C        PURPOSE: Converts Monin-Obukhov length to PG stability class
-C                 for use with AREADPLT option, based on Golder (1972)
+C        PURPOSE:  Converts Monin-Obukhov length to PG stability class
+C                  for use with FASTAREA option, based on Golder (1972)
 C
-C        PROGRAMMER: R. Brode
+C        MODIFIED: The original LTOPG routine in AERMOD was replaced 
+C                  with the LSTAB function from the CTDMPLUS model, which
+C                  more closely matches the PG-class curves in Figure 4 
+C                  of the Golder (1972) paper.
+C                  R. W. Brode, U.S. EPA, OAQPS, AQMG, 02/29/2012
 C
-C        DATE:       November 21, 1997
+C LTOPG is based on the LSTAB function in the CTDMPLUS model:
 C
-C        INPUTS:  Monin-Obukhov lenght, OBULEN
-C                 Surface roughness length, SFCZ0
+C FUNCTION: LSTAB
 C
+C PURPOSE: THIS FUNCTION CALCULATES A P-G STABILITY CLASS GIVEN THE
+C               MONIN-OBUKHOV LENGTH (L) AND THE SURFACE ROUGHNESS
+C               LENGTH (Z0).
 C
-C        OUTPUTS: HRVAL, Concentration or Deposition for Particular
-C                 Source/Receptor Combination
+C ASSUMPTIONS: THE DIVIDING LINES BETWEEN CATEGORIES ARE ASSUMED TO BE
+C               LINEAR.
 C
-C        CALLED FROM:   SET_METDATA
-C***********************************************************************
-
+C LIMITATIONS: THIS FUNCTION IS ONLY VALID FOR 0.01 <= Z0 <= 0.5(M).
+C              HOWEVER, RESULTS ARE EXTENDED TO OTHER VALUES OF Z0 BY
+C              USING Z0 = 0.01 IF Z0 < 0.01 M, AND BY USING Z0 = 0.5
+C              IF Z0 > 0.5 M.
+C
+C ARGUMENTS
+C  PASSED:
+C       EL      REAL    MONIN-OBUKHOV LENGHT (M)
+C       ZR0     REAL    SURFACE ROUGHNESS LENGTH (M)
+C  RETURNED FUNCTION VALUE:
+C       LSTAB   INT     P-G STABILITY CATEGORY 1=A, 2=B, ETC.
+C
+C CALLING ROUTINES: SEQMOD
+C
+C EXTERNAL ROUTINES: NONE
+C
+C INTERNAL FUNCTIONS:
+C       XL - EQUATION OF DIVIDING LINE BETWEEN P-G STABILITY CLASSES
+C
+C INTRINSIC FUNCTIONS: ALOG
+C
+C REFERENCES:
+C       GOLDER, D. (1972): RELATIONS AMONG STABILITY PARAMETERS IN THE
+C                       SURFACE LAYER, BOUNDARY-LAYER METEOROLOGY, 3:56.
+C
+C-----------------------------------------------------------------------
+C
 C     Variable Declarations
       USE MAIN1
       IMPLICIT NONE
       CHARACTER MODNAM*12
 
-      DOUBLE PRECISION LNZ0, LNZ02, OBUINV
-      DOUBLE PRECISION AB, BC, CD, DE, EF, AA, BB, CC, DD, EE, FF
-      INTEGER ISTAB
+      DOUBLE PRECISION :: EL, XEL, XL, Z0, ZR0, YY, XM, B
+      
+      INTEGER :: LSTAB
 
-C     Variable Initializations
-      MODNAM = 'LTOPG'
-
-C     Initialize local variables
-
-      IF (ZI.EQ.0.0D0 .OR. OBULEN.EQ.0.0D0 .OR. SFCZ0.LE.0.0D0) THEN
-         ISTAB = 9
-         GO TO 999
-      END IF
-
-      LNZ0 = DLOG(SFCZ0)
-      LNZ02 = LNZ0 * LNZ0
-      AA = -0.1360107D0 + 0.0118433D0 * LNZ0 + 0.00021242D0 * LNZ02
-      BB = -0.08608128D0 + 0.0118433D0 * LNZ0 + 0.00021242D0 * LNZ02
-      CC = -0.0390887D0 + 0.009030514D0 * LNZ0 - 0.0005869182D0 * LNZ02
-      DD = -0.0116834D0 + 0.00182343D0 * LNZ0 -0.000002247867D0 * LNZ02
-      EE = -DD
-      FF = -CC
-
-c     Interpolate to get 1./L values to define boundaries between
-c     stability classes.
-      AB = (AA + BB)/2.0D0
-      BC = (BB + CC)/2.0D0
-      CD = (CC + DD)/2.0D0
-      DE = (DD + EE)/2.0D0
-      EF = (EE + FF)/2.0D0
-
-c     Calculate stability class ISTAB
-
-      OBUINV = 1.0D0/OBULEN
-
-      IF (OBUINV .LE. AB) THEN
-         ISTAB = 1
-      ELSE IF (OBUINV .LE. BC) THEN
-         ISTAB = 2
-      ELSE IF (OBUINV .LE. CD) THEN
-         ISTAB = 3
-      ELSE IF (OBUINV .LE. DE) THEN
-         ISTAB = 4
-      ELSE IF (OBUINV .LE. EF) THEN
-         ISTAB = 5
-      ELSE
-         ISTAB = 6
-      END IF
-
-999   RETURN
+      XL(YY,XM,B)=XM/(DLOG(YY)-B)
+C
+C
+      EL  = OBULEN
+      ZR0 = SFCZ0
+C
+      Z0 = ZR0
+      IF(Z0 .GT. 0.5D0) Z0 = 0.5D0
+      IF(Z0 .LT. 0.01D0) Z0 = 0.01D0
+      IF(EL .LT. 0.0D0) THEN
+          XEL = -EL
+          IF(XEL .LE. XL(Z0,-70.0D0,4.35D0)) THEN
+C             STABILITY A
+              LSTAB=1
+            ELSE IF(XEL .LE. XL(Z0,-85.2D0,0.502D0)) THEN
+C             STABILITY B
+              LSTAB=2
+            ELSE IF(XEL .LE. XL(Z0,-245.0D0,0.050D0)) THEN
+C             STABILITY C
+              LSTAB=3
+            ELSE
+C             STABILITY D
+              LSTAB=4
+          ENDIF
+        ELSE
+          IF(EL .GE. XL(Z0,-327.0D0,0.627D0)) THEN
+C             STABILITY D
+              LSTAB=4
+            ELSE IF(EL .GE. XL(Z0,-70.0D0,0.295D0)) THEN
+C             STABILITY E
+              LSTAB=5
+            ELSE
+C             STABILITY F
+              LSTAB=6
+          ENDIF
+      ENDIF
+C
+      RETURN
       END
-
 
 c----------------------------------------------------------------------
       subroutine VDP

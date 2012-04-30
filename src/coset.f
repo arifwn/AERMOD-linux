@@ -2927,8 +2927,8 @@ C        Error Message: Too Many Parameters
          GO TO 999
       END IF
 
-      IF (L_MULTURB) THEN
-C        READ in the Urban ID
+      IF (.NOT. L_URBAN_ALL .AND. L_MULTURB) THEN
+C        READ in the Urban ID for multiple urban areas
          TEMPID = FIELD(3)
          DO I = 1, NUMURB
             IF (TEMPID .EQ. URBID(I)) THEN
@@ -2979,7 +2979,7 @@ C           Assign value of urban roughness length (optional)
             CALL STODBL(FIELD(6),ILEN_FLD,URBZ0(IURB),IMIT)
             IF (IMIT .NE. 1) THEN
 C              Write Error Message:Invalid Numerical Field
-               CALL ERRHDL(PATH,MODNAM,'E','208',KEYWRD)
+               CALL ERRHDL(PATH,MODNAM,'E','208','URBAN_Z0')
             ELSE
                IF (DFAULT .AND. URBZ0(IURB) .NE. 1.0D0) THEN
 C                 Write Warning Message: Non-default urban roughness length
@@ -3007,6 +3007,11 @@ C                 Write Error Message: Urban roughness out of range
             URBZ0(IURB) = 1.0D0
          END IF
 
+      ELSE IF (L_URBAN_ALL .AND. L_MULTURB) THEN
+C        Write Error Message: URBANSRC ALL option with 
+C        multiple URBAN areas
+         CALL ERRHDL(PATH,MODNAM,'E','279','URBANSRC ALL')
+         
       ELSE
 C        Single Urban Area - Process Inputs without URBAN ID
 
@@ -3040,7 +3045,7 @@ C           Assign value of urban roughness length (optional)
             CALL STODBL(FIELD(5),ILEN_FLD,URBZ0(IURB),IMIT)
             IF (IMIT .NE. 1) THEN
 C              Write Error Message:Invalid Numerical Field
-               CALL ERRHDL(PATH,MODNAM,'E','208',KEYWRD)
+               CALL ERRHDL(PATH,MODNAM,'E','208','URBAN_Z0')
             ELSE
                IF (DFAULT .AND. URBZ0(IURB) .NE. 1.0D0) THEN
 C                 Write Warning Message: Non-default urban roughness length
@@ -3424,6 +3429,10 @@ C        PROGRAMMER:  Roger Brode
 C
 C        DATE:       February 28, 2011
 C
+C        MODIFIED: Corrected the test for number of parameters to
+C                  be .GE. 4 to allow for the ANNUAL option.
+C                  R. W. Brode, U.S. EPA, OAQPS, AQMG, 12/19/2011
+C
 C        INPUTS:  Input Runstream Image Parameters
 C
 C        OUTPUTS: Variable Emmission Rate Factors
@@ -3457,7 +3466,7 @@ C        Error Message: No Parameters
 C        Error Message: No Numerical Parameters
          CALL ERRHDL(PATH,MODNAM,'E','201',KEYWRD)
          GO TO 999
-      ELSE IF (IFC .LT. 5) THEN
+      ELSE IF (IFC .LT. 4) THEN
 C        Error Message: Not Enough Parameters
          CALL ERRHDL(PATH,MODNAM,'E','201',KEYWRD)
          GO TO 999

@@ -4263,6 +4263,13 @@ C        PROGRAMMER: Roger Brode
 C
 C        DATE:    June 11, 1996
 C
+C        MODIFIED:   Modified to allow for the use of URBANSRC ALL on
+C                    the SO pathway to indicate that all sources are 
+C                    to be treated as URBAN sources. This option assumes 
+C                    that only one (1) urban area has been defined using 
+C                    the CO URBANOPT keyword.
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C
 C        INPUTS:  Input Runstream Image Parameters
 C
 C        OUTPUTS: Array of flags for Urban Sources
@@ -4291,7 +4298,19 @@ C        Error Message: No Parameters
          GO TO 999
       END IF
 
-      IF (L_MULTURB) THEN
+C     Check for 'URBANSRC ALL' option identified in PRESET
+      IF (L_URBAN_ALL) THEN
+         IF (IFC .EQ. 3 .AND. FIELD(3) .EQ. 'ALL') THEN
+            URBSRC(:) = 'Y'
+            IURBGRP(:,:) = 1
+            GO TO 999
+         ELSE
+C           WRITE Error Message:  URBANSRC ALL 
+            CALL ERRHDL(PATH,MODNAM,'E','279','URBANSRC ALL')
+            GO TO 999
+         END IF
+
+      ELSE IF (L_MULTURB) THEN
 C        Multiple Urban Areas
 C        READ in the Group ID and Check for Continuation Card
          TEMPID = FIELD(3)
@@ -4321,23 +4340,42 @@ C        Specify field index to start for Source IDs
 
 C     Loop Through Fields
       DO I = ISTR, IFC
-         CALL FSPLIT(PATH,KEYWRD,FIELD(I),ILEN_FLD,'-',RMARK,LOWID,
-     &               HIGID)
-C        First Check Range for Upper Value < Lower Value
-         CALL SETIDG(LOWID,LID1,IL,LID2)
-         CALL SETIDG(HIGID,HID1,IH,HID2)
-         IF ((HID1.LT.LID1) .OR. (IH.LT.IL) .OR. (HID2.LT.LID2)) THEN
-C           WRITE Error Message:  Invalid Range,  Upper < Lower
-            CALL ERRHDL(PATH,MODNAM,'E','203','SRCRANGE')
-            CYCLE
-         END IF
-         DO K = 1, NUMSRC
-            CALL ASNGRP(SRCID(K),LOWID,HIGID,INGRP)
-            IF (INGRP) THEN
-               URBSRC(K) = 'Y'
-               IURBGRP(K,IURB) = 1
+         IF (INDEX(FIELD(I),'-') .EQ. 0) THEN
+            FOUND = .FALSE.
+            DO K = 1, NUMSRC
+               IF (SRCID(K) .EQ. FIELD(I)) THEN
+                  FOUND = .TRUE.
+                  URBSRC(K) = 'Y'
+                  IURBGRP(K,IURB) = 1
+               END IF
+            END DO
+            IF (.NOT.FOUND) THEN
+C              WRITE Error Message:  SRCID not found
+               CALL ERRHDL(PATH,MODNAM,'E','300',KEYWRD)
+               CYCLE
             END IF
-         END DO
+            
+         ELSE
+
+            CALL FSPLIT(PATH,KEYWRD,FIELD(I),ILEN_FLD,'-',RMARK,LOWID,
+     &                  HIGID)
+C           First Check Range for Upper Value < Lower Value
+            CALL SETIDG(LOWID,LID1,IL,LID2)
+            CALL SETIDG(HIGID,HID1,IH,HID2)
+            IF ((HID1.LT.LID1) .OR. (IH.LT.IL) .OR. (HID2.LT.LID2)) THEN
+C              WRITE Error Message:  Invalid Range,  Upper < Lower
+               CALL ERRHDL(PATH,MODNAM,'E','203','SRCRANGE')
+               CYCLE
+            END IF
+            DO K = 1, NUMSRC
+               CALL ASNGRP(SRCID(K),LOWID,HIGID,INGRP)
+               IF (INGRP) THEN
+                  URBSRC(K) = 'Y'
+                  IURBGRP(K,IURB) = 1
+               END IF
+            END DO
+            
+         END IF
       END DO
 
  999  RETURN

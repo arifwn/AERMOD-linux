@@ -923,6 +923,12 @@ C*         PROGRAMMER:  Roger Brode
 C* 
 C*         DATE:    October 17, 2005
 C* 
+C          MODIFIED:  Modified to assign EV_O3CONC(IHR) value based on 
+C                     the O3BACK variable from CO OZONEVAL keyword when 
+C                     no background hourly ozone file or CO O3VALUES inputs
+C                     are available.
+C                     R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C
 C          MODIFIED:  Modified to use background ozone values input
 C                     through the CO O3VALUES option to substitute for 
 C                     missing hourly ozonce concentrations.
@@ -958,6 +964,7 @@ C ---    Assign local IHR index to global IHOUR index
          IHOUR = IHR
          
          IF (O3FILE) THEN
+C ---       Hourly O3 file availabe; read the next hour of O3 data
             IF (O3FORM .EQ. 'FREE') THEN
                READ(IO3UNT,*,ERR=99,END=999) IO3YR, IO3MN, IO3DY, IO3HR,
      &                                       EV_O3CONC(IHR)
@@ -1047,7 +1054,11 @@ C ---       No Hourly O3 file available
 C ---       Check for temporally-varying ozone concentrations from O3VALUES
 C           keyword; used to fill in for missing hourly data.
             IF (L_O3VALUES) THEN
+C ---          Temporally varying O3 values specified on CO O3VALUES keyword
                CALL OZONVALS(EV_O3CONC(IHR))
+            ELSE
+C ---          No O3 file and no O3VALUES; use O3BACK from CO OZONEVAL keyword
+               EV_O3CONC(IHR) = O3BACK
             END IF
             
          END IF

@@ -1235,6 +1235,9 @@ C     Add logical for MAXDAILY output file option
       MXDAILY_BYYR  = .FALSE.
 C     Initialize variable to skip messages during MAXDCONT processing
       L_SkipMessages = .FALSE.
+C     Initialize variable to limit warnings for MAXDCONT values not
+C     matching for "target" array
+      MAXDWARN = .FALSE.
       
 C --- Set logical flag for whether "New" met data are being used, based 
 C     on version 11059 or later of AERMET, using the wind data source
@@ -1342,9 +1345,11 @@ C --- Initialize BFLAG for BACKGRND concentrations
       
 C     Add gas dry deposition parameters
       IF (ALLOCATED(PDIFF))      PDIFF(:)  = 0.0D0
+      IF (ALLOCATED(PDIFFW))     PDIFFW(:) = 0.0D0
       IF (ALLOCATED(ALPHAS))     ALPHAS(:) = 0.0D0
       IF (ALLOCATED(REACT))      REACT(:)  = 0.0D0
       IF (ALLOCATED(HENRY))      HENRY(:)  = 0.0D0
+      IF (ALLOCATED(RCLI))       RCLI(:)   = 0.0D0
       IF (ALLOCATED(L_METHOD2))  L_METHOD2(:) = .FALSE.
       
       IF (ALLOCATED(ADSBH))   ADSBH(:,:)   = 0.0D0
@@ -1355,7 +1360,7 @@ C     Add gas dry deposition parameters
       IF (ALLOCATED(AXVERT))  AXVERT(:,:)  = 0.0D0
       IF (ALLOCATED(AYVERT))  AYVERT(:,:)  = 0.0D0
 
-      QFACT(:,:)  = 0.0D0
+      IF (ALLOCATED(QFACT))   QFACT(:,:)   = 0.0D0
       BACKGRND(:) = 0.0D0
       IGROUP(:,:) = 0
       IF (OLM) THEN

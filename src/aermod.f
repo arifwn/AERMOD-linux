@@ -1,15 +1,173 @@
       PROGRAM AERMOD
 C=======================================================================
 C            MAIN Module of the AMS/EPA Regulatory Model - AERMOD
-C                           Version Dated 11103
+C                           Version Dated 12060
 C 
-C                              April 13, 2011
+C                            February 29, 2012
 C
-C               *** SEE AERMOD MODEL CHANGE BULLETIN MCB#5 ***
+C               *** SEE AERMOD MODEL CHANGE BULLETIN MCB#7 ***
 C
 C       ON THE SUPPORT CENTER FOR REGULATORY AIR MODELS (SCRAM) WEBSITE
 C
 C                      http://www.epa.gov/scram001/
+C
+C=======================================================================
+C
+C       This revised version of AERMOD (dated 12060) includes the
+C       following modifications relative to the previous version
+C       (dated 11353); see MCB#7.
+C
+C-----  Bug Fixes:
+C
+C       1.  Modified subroutine MAXDCONT_LOOP to correct problems with the
+C           MAXDCONT option for applications that vary emissions (EMISFACT), 
+C           background ozone data (O3VALUES), or background concentrations 
+C           (BACKGRND) with a day-of-week component, e.g., SHRDOW or SHRDOW7, 
+C           etc. Also modified subroutine MAXDCALC to correct the MAXDCONT 
+C           option for applications that include hourly emissions (HOUREMIS) 
+C           for at least one source, but not all sources. Both of these bugs 
+C           associated with the MAXDCONT option may have caused significant 
+C           errors in the source group contributions in the MAXDCONT output 
+C           file. 
+C   
+C           Subroutine MAXDCONT_LOOP was also modified to include checks on 
+C           the consistency between results in the SUMVAL_MAXD and SUMHNH 
+C           arrays for the "target" source group under the MAXDCONT option. 
+C           The SUMVAL_MAXD array values are recalulated during the MAXDCONT 
+C           processing, whereas the SUMHNH array values are calculated during 
+C           normal processing. Results in these two arrays should match for 
+C           the "target" source group. These consistency checks will serve
+C           to flag any potential problems with the MAXDCONT option.
+C
+C       2.  Modified subroutine O3READ to correct a problem with the OLM and
+C           PVMRM options under the EVENT processing mode when only the 
+C           CO OZONEVAL keyword is used to specify a background ozone value,
+C           without an hourly ozone file through the CO OZONEFIL keyword or
+C           varying ozone values through the CO O3VALUES keyword.  Previous
+C           versions effectively assumed a background ozone value of 0 (zero)
+C           in these cases, resulting in underestimated source contributions 
+C           in the EVENT output file.
+C
+C       3.  Modified subroutine LTOPG to use code from CTDMPLUS (also used
+C           in CALPUFF) for estimating PG class from Monin-Obukhov length 
+C           and surface roughness based on Golder (1972). The CTDMPLUS code
+C           more closely matches the PG-class curves in Figure 4 of the Golder 
+C           (1972) paper. The LTOPG routine is only used to determine the
+C           stability-dependent distance for transitioning to a virtual point 
+C           source approximiation for area sources under the FASTAREA
+C           or FASTALL options.
+C           
+C-----  Enhancements:
+C   
+C       1.  Modified subroutines PRESET, SRCSIZ, and URBANS to allow for 
+C           the use of URBANSRC ALL on the SO pathway to indicate that 
+C           all sources are to be treated as URBAN sources. This option 
+C           assumes that only one (1) urban area has been defined using 
+C           the CO URBANOPT keyword.
+C   
+C       2.  Modified subroutines PRESET and MECARD and added subroutine 
+C           NUMYR to allow the user to specify the number of years of 
+C           meteorological data that are being processed for a particular 
+C           run.  The option is exercised with the new NUMYEARS keyword on 
+C           the ME pathway. The value specified on the NUMYEARS keyword 
+C           is used to allocate storage for the arrays that are used in 
+C           the MAXDCONT option, and allows the user to reduce the memory 
+C           storage requirements under the MAXDCONT option when less than 
+C           five (5) years of met data are being used. The default number 
+C           of years used for the MAXDCONT array allocation without the 
+C           NUMYEARS keyword is still 5 years (formerly specified by 
+C           the NYEARS PARAMETER).
+C   
+C-----  Miscellaneous:
+C   
+C       1.  Modified subroutine ALLRESULT to eliminate the arrays of 
+C           profile met data (the observed data in the PROFFILE input) 
+C           by hour-of-year, level, and year for use with the MAXDCONT 
+C           option. The profile met data arrays are not needed for the 
+C           MAXDCONT option and their removal reduces the memory 
+C           requirements for that option. Additional adjustments to the
+C           array allocations for the MAXDCONT option were made based
+C           on the options used for a specific model run in order to 
+C           minimize the memory requirements for the MAXDCONT option.
+C           Subroutine ALLRESULT was also modified to improve the 
+C           accuracy of the memory storage estimates included on the
+C           first page of the AERMOD.OUT file.
+C   
+C       2.  Modified subroutine OUMAXD_CONT to include checks on the use 
+C           of a limited range of ranks (specified on the OU RECTABLE 
+C           keyword) with the THRESH option on the OU MAXDCONT keyword. 
+C           A fatal error message will be generated if the range of ranks 
+C           specified is less than or equal to the design value rank for 
+C           the specified pollutant plus 4, i.e., a fatal error will be 
+C           generated if the range of ranks is less than or equal to 8 
+C           for 1-hr SO2, or less than or equal to 12 for 1-hr NO2 or 
+C           24-hr PM2.5. A non-fatal warning message is also generated 
+C           if the range of ranks is less than or equal to the design 
+C           value rank plus 20, i.e., if the range of ranks is less than 
+C           or equal to 24 for 1-hr SO2, or less than or equal to 28 for 
+C           1-hr NO2 or 24-hr PM2.5.
+C
+C
+C-----  MODIFIED BY:    Roger W. Brode
+C                       U.S. EPA, OAQPS/AQAD
+C                       Air Quality Modeling Group
+C
+C                       February 29, 2012
+C
+C-----  MODIFIED FROM:          AERMOD
+C                       (Version Dated 11353)
+C
+C
+C=======================================================================
+C
+C       This revised version of AERMOD (dated 11353) includes the
+C       following modifications relative to the previous version
+C       (dated 11103); see MCB#6.
+C
+C-----  Bug Fixes:
+C
+C       1.  Modified subroutines METEXT, MAXD_METEXT, ALLRESULT to fix the
+C           MAXDCONT option for URBAN applications. Source contributions 
+C           reported in MAXDCONT files generated by the previous version
+C           could be erroneous for applications involving URBAN sources.
+C
+C       2.  Modified subroutine OUTQA to include logical variable PLFILE 
+C           for PLOTFILEs in the check for output file options that use
+C           the FILEFORM keyword specifying whether fixed-format or 
+C           exp-format is used. Previous versions erroneously issued 
+C           warning message W399 if PLOTFILE was the only relevant output 
+C           option used with the FILEFORM keyword.
+C
+C       3.  Modified subroutine O3VALS to correct the test for number of 
+C           parameters to be .GE. 4 to allow for the ANNUAL option.
+C
+C       4.  Modified subroutine METEXT to only increment the hour index and 
+C           year index if MAXDCONT option is being used. This change avoids 
+C           unnecessary runtime error if the met data file includes a single 
+C           hour (or more) beyond the maximum number of years specified by the 
+C           NYEARS PARAMETER, which is initialized to 5 in the MAIN1 module.
+C
+C       5.  Modified subroutine PRTO3VALS to use the O3FLAG variable which
+C           identifies the user-specified option for defining temporally-
+C           varying background ozone concentrations. The previous version 
+C           erroneously referenced the BFLAG variable associated with 
+C           user-specified BACKGROUND concentrations. This error would not
+C           have affected modeled concentrations based on the previous 
+C           version of the model, but could result in a runtime error due 
+C           to an array subscript out-of-bounds for some applications, or 
+C           could result in skipping the summary of user-specified ozone
+C           values in the output file for some applications.
+C
+C
+C-----  MODIFIED BY:    Roger W. Brode
+C                       U.S. EPA, OAQPS/AQAD
+C                       Air Quality Modeling Group
+C
+C                       December 19, 2011
+C
+C-----  MODIFIED FROM:          AERMOD
+C                       (Version Dated 11103)
+C
 C
 C=======================================================================
 C
@@ -1732,6 +1890,7 @@ C     Variable Initializations
       MODNAM = 'MAIN'
       
       NTOTHRS = 0
+      NYEARS  = 0
       
       FATAL  = .FALSE.
       RUNERR = .FALSE.
@@ -1752,6 +1911,12 @@ C     Open Input and Output Files                           ---   CALL FILOPN
 
 C     Preprocess Setup Information to Determine Data Storage Needs
       CALL PRESET
+      
+      IF (NYEARS .EQ. 0) THEN
+C ---    Number of years for MAXDCONT arrays has not be specified,
+C        set to default value of 5 years
+         NYEARS = 5
+      END IF
       
       IF (.NOT. EVONLY) THEN
 C        OPEN The Temporary File to Store Events for EVENT File;
@@ -1910,7 +2075,7 @@ C        Issue error message and skip initialization of results arrays.
      &                   ' ARRAYS!'
          WRITE(IOUNIT,10902) NSRC,NGRP,NREC,NSEC,NQF,NBF,NPDMAX,NVMAX,
      &                       NURB,NOLM,NPSD,NNET,IXM,IYM,NAVE,NTYP,
-     &                       NHIVAL,NHIANN,NMXVAL
+     &                       NHIVAL,NHIANN,NMXVAL,NYEARS
 10902    FORMAT(/'   ARRAY PARAMETER SETTINGS: ',/
      &           '         NSRC   = ', I8,/
      &           '         NGRP   = ', I8,/
@@ -1930,7 +2095,8 @@ C        Issue error message and skip initialization of results arrays.
      &           '         NTYP   = ', I8,/
      &           '         NHIVAL = ', I8,/
      &           '         NHIANN = ', I8,/
-     &           '         NMXVAL = ', I8)
+     &           '         NMXVAL = ', I8,/
+     &           '         NYEARS = ', I8)
 
          WRITE(IOUNIT,*)
          WRITE(IOUNIT,9057) STORE
@@ -4475,14 +4641,16 @@ C     Variable Initializations
          END IF
       END IF
 
-      ALLOCATE  (QFACT(NQF,NSRC), STAT=IASTAT)
-      IF (IASTAT .NE. 0) THEN
-         WRITE(DUMMY,'(I8)') IASTAT
-         CALL ERRHDL(PATH,MODNAM,'E','298',DUMMY)
-         ALLOC_ERR = .TRUE.
-         WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
-     &                   'Source Emission Factor Arrays!'
-
+      IF (NQF .GT. 0) THEN
+         ALLOCATE  (QFACT(NQF,NSRC), STAT=IASTAT)
+         IF (IASTAT .NE. 0) THEN
+            WRITE(DUMMY,'(I8)') IASTAT
+            CALL ERRHDL(PATH,MODNAM,'E','298',DUMMY)
+            ALLOC_ERR = .TRUE.
+            WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
+     &                      'Source Emission Factor Arrays!'
+         END IF
+         
       END IF
 
       IF (NPDMAX .GT. 0) THEN
@@ -4711,8 +4879,22 @@ C        PURPOSE: Allocate Array Storage for Results
 C
 C        PROGRAMMER: Roger Brode, PES, Inc.
 C
-C        DATE:    September 21, 1996
-C
+C        DATE:       September 21, 1996
+C 
+C        MODIFIED:   Modified subroutine ALLRESULT to eliminate the arrays of 
+C                    profile met data (the observed data in the PROFFILE input) 
+C                    by hour-of-year, level, and year for use with the MAXDCONT 
+C                    option. The profile met data arrays are not needed for the 
+C                    MAXDCONT option and their removal reduces the memory 
+C                    requirements for that option. Additional adjustments to the
+C                    array allocations for the MAXDCONT option were made based
+C                    on the options used for a specific model run in order to 
+C                    minimize the memory requirements for the MAXDCONT option.
+C                    Subroutine ALLRESULT was also modified to improve the 
+C                    accuracy of the memory storage estimates included on the
+C                    first page of the AERMOD.OUT file.
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C   
 C        MODIFIED:   Added calculation of STORE, estimated memory
 C                    storage requirements, to report if allocation
 C                    errors occur.
@@ -4779,15 +4961,15 @@ C     Assign array limits to REAL for calculation of STORE
       STORE = 0.0
       IF (.NOT. EVONLY) THEN
 C        Calculate Approximate Allocated Storage Requirements
-         STORE = RSRC*(54.+RQF+5.*RSEC+5.*RPDMAX+2.*RVMAX+RGRP+RURB)+
+         STORE = RSRC*(54.+RQF+5.*RSEC+5.*RPDMAX+2.*RVMAX+
+     &           0.5*(RGRP+RURB))+
      &           RPDMAX*14. +
-     &           RREC*(9.+RHIVAL*RGRP*RAVE*RTYP*2.25+RGRP*RAVE*RTYP+
+     &           RREC*(9.+RHIVAL*RGRP*RAVE*RTYP*1.75+RGRP*RAVE*RTYP+
      &                 2.*RGRP*RTYP+RGRP) +
      &           RARC*20. + RNET*(9.+RXM+RYM) +
-     &           RHIVAL*(RGRP*RAVE*RTYP*3.25+
-     &                   3.*RGRP*RAVE+RGRP*RTYP*2.+RAVE) +
-     &           RMAXVAL*(RGRP*RAVE*RTYP*3.25) +
-     &           RHIANN*2.*RGRP*RTYP +
+     &           RHIVAL*(RGRP*RAVE*RTYP*3.)+
+     &           RMAXVAL*(RGRP*RAVE*RTYP*2.25) +
+     &           RHIANN*1.5*RGRP*RTYP +
      &           RAVE*(12.+2.*RPAIR+3.*RHIVAL*RGRP+8.*RGRP) +
      &           RGRP*11. + RTYP*38. + RVMAX*20.
          IF (SEASONHR) THEN
@@ -4801,21 +4983,44 @@ C        Calculate Approximate Allocated Storage Requirements
                   STORE = STORE + ( RSRC*(2.+RPSD) + RREC*2.*RTYP )
                END IF
             ELSE IF (OLM) THEN
-               STORE = STORE + ( ROLM*RSRC + ROLM + RSRC )
+               STORE = STORE + ( 0.5*ROLM*RSRC + ROLM + RSRC )
             END IF
          END IF
          IF (PM25AVE .OR. NO2AVE .OR. SO2AVE) THEN
-            STORE = STORE + RREC*RGRP*(3.+2.*RHIMXDLY+
-     &                                    2.*RHIMXDLY*RYEARS)
+            STORE = STORE + RREC*RGRP*(1.5+1.5*RHIMXDLY+
+     &                                     1.5*RHIMXDLY*RYEARS)
          END IF
          IF (L_MAXDCONT) THEN
-            STORE = STORE + RYEARS*(36.*8784.+8.*8784.+
-     &                 9.*8784.*REAL(MXPLVL)+14.*8784.*REAL(MXGLVL))
+            STORE = STORE + RYEARS*(19.*8784.+10.*8784.+
+     &                               7.*8784.*REAL(MXGLVL))
+            IF (LDGAS.OR.LDPART.OR.LWGAS.OR.LWPART) THEN
+               STORE = STORE + RYEARS*14.*8784.
+            END IF
+            IF (NSEC .GT. 0) THEN
+               STORE = STORE + RYEARS*8784.*REAL(MXGLVL)
+            END IF
+            IF (PVMRM) THEN
+               STORE = STORE + RYEARS*8784.*REAL(MXGLVL)
+            END IF
+            IF (PVMRM .OR. OLM) THEN
+               STORE = STORE + RYEARS*8784.
+            END IF
+            IF (L_BACKGRND) THEN
+               STORE = STORE + RYEARS*8784.
+            END IF
             IF (HOURLY) THEN
-               STORE = STORE + RYEARS*REAL(6*8784)*RSRC
+               STORE = STORE + RYEARS*REAL(2*8784)*RSRC
+               IF (NPNT .GT. 0) THEN
+                  STORE = STORE + RYEARS*REAL(2*8784)*RSRC
+               END IF
+               IF (NVOL .GT. 0 .OR. NVMAX .GT. 0) THEN
+                  STORE = STORE + RYEARS*REAL(2*8784)*RSRC
+               END IF
             END IF            
             IF (NURB .GT. 0) THEN
-               STORE = STORE + REAL(4*8784*MXGLVL*NYEARS*NURB)
+               STORE = STORE + REAL(4*8784*MXGLVL*NYEARS*NURB) +
+     &                         REAL(4*8784*MXGLVL*NYEARS) +
+     &                         REAL(5*8784*NYEARS*NURB)
             END IF
          END IF
          STORE = STORE*8./1.048576E6 + 3.5
@@ -4825,13 +5030,15 @@ C        Calculate Approximate Allocated Storage Requirements
      &           AERVAL(NUMTYP), PRMVAL(NUMTYP),
      &           STAT=IASTAT)
 
-      ALLOCATE  (ARCMAX(NARC), QMAX(NARC), DXMAX(NARC), UMAX(NARC),
-     &           SVMAX(NARC), SWMAX(NARC), SYMAX(NARC), SY3MX(NARC),
-     &           U3MAX(NARC), HEMAX(NARC), ARCCL(NARC), SZMAX(NARC),
-     &           CHIDMW(NARC), CHINMW(NARC), CHI3MW(NARC),
-     &           CHIDML(NARC), CHINML(NARC), CHI3ML(NARC),
-     &           HSBLMX(NARC),
-     &           STAT=IASTAT)
+      IF (NARC .GT. 0) THEN
+         ALLOCATE  (ARCMAX(NARC), QMAX(NARC), DXMAX(NARC), UMAX(NARC),
+     &              SVMAX(NARC), SWMAX(NARC), SYMAX(NARC), SY3MX(NARC),
+     &              U3MAX(NARC), HEMAX(NARC), ARCCL(NARC), SZMAX(NARC),
+     &              CHIDMW(NARC), CHINMW(NARC), CHI3MW(NARC),
+     &              CHIDML(NARC), CHINML(NARC), CHI3ML(NARC),
+     &              HSBLMX(NARC),
+     &              STAT=IASTAT)
+      END IF
 
       IF (.NOT. EVONLY) THEN
          ALLOCATE  (AVEVAL(NUMREC,NUMGRP,NUMAVE,NUMTYP),
@@ -4845,6 +5052,7 @@ C        Calculate Approximate Allocated Storage Requirements
             WRITE(DUMMY,'(I8)') IASTAT
             CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
             ALLOC_ERR = .TRUE.
+            WRITE(IOUNIT,*) ' '
             WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                      'Short Term Average Results Arrays!'
          END IF
@@ -4858,6 +5066,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'Long Term Average Results Arrays!'
             END IF
@@ -4872,6 +5081,7 @@ C        Calculate Approximate Allocated Storage Requirements
             WRITE(DUMMY,'(I8)') IASTAT
             CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
             ALLOC_ERR = .TRUE.
+            WRITE(IOUNIT,*) ' '
             WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                      'Overall Maximum Results Arrays!'
          END IF
@@ -4883,6 +5093,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'SEASONHR Results Arrays!'
             END IF
@@ -4901,6 +5112,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'MAXDAILY Results Arrays!'
            END IF
@@ -4913,6 +5125,7 @@ C        Calculate Approximate Allocated Storage Requirements
             WRITE(DUMMY,'(I8)') IASTAT
             CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
             ALLOC_ERR = .TRUE.
+            WRITE(IOUNIT,*) ' '
             WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                      'High Value Result Flag Arrays!'
          END IF
@@ -4924,6 +5137,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'ANNUAL Results Arrays!'
             END IF
@@ -4938,6 +5152,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                IF (PM25AVE) THEN
                   WRITE(IOUNIT,*) '  Error Occurred During Allocation',
      &                            ' of PM-2.5 24-hr Results Arrays!'
@@ -4953,7 +5168,7 @@ C        Calculate Approximate Allocated Storage Requirements
 
       END IF
 
-      IF (EVONLY .OR. .NOT.L_MAXDCONT) THEN
+      IF (EVONLY) THEN
          ALLOCATE  (ASFCHF(NHR,1), AUREF(NHR,1), 
      &              AUREFHT(NHR,1), ATA(NHR,1), 
      &              ATREFHT(NHR,1), AWDREF(NHR,1), 
@@ -4968,6 +5183,7 @@ C        Calculate Approximate Allocated Storage Requirements
      &              APREC2(NHR,1), IAPCODE(NHR,1), NACLOUD(NHR,1),
      &              ACLMHR(NHR,1), AMSGHR(NHR,1),
      &              AUNSTAB(NHR,1), ASTABLE(NHR,1),
+     &              AURBSTAB(NHR,1),
      &              ANPLVLS(NHR,1), ANTGLVL(NHR,1), 
      &              AO3CONC(NHR,1), ABGCONC(NHR,1),
      &              AAQS(NHR,1,NSRC), AAHS(NHR,1,NSRC),
@@ -4990,6 +5206,7 @@ C        Calculate Approximate Allocated Storage Requirements
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'Event Arrays!'
             END IF
@@ -5001,23 +5218,11 @@ C        Calculate Approximate Allocated Storage Requirements
      &           AUSTAR(8784,NYEARS), AWSTAR(8784,NYEARS),
      &           AZICONV(8784,NYEARS), AZIMECH(8784,NYEARS), 
      &           AOBULEN(8784,NYEARS), AVPTGZI(8784,NYEARS),
-     &           ASFCZ0(8784,NYEARS), ABOWEN(8784,NYEARS),
-     &           AALBEDO(8784,NYEARS), AWNEW(8784,NYEARS), 
-     &           AWOLD(8784,NYEARS), AESTA(8784,NYEARS), 
-     &           AF2(8784,NYEARS), APREC1(8784,NYEARS), 
-     &           APREC2(8784,NYEARS), APRATE(8784,NYEARS), 
-     &           ARH(8784,NYEARS), ASFCP(8784,NYEARS),AQSW(8784,NYEARS),
-     &           IAPCODE(8784,NYEARS), NACLOUD(8784,NYEARS),
+     &           ASFCZ0(8784,NYEARS), 
      &           ACLMHR(8784,NYEARS), AMSGHR(8784,NYEARS),
      &           AUNSTAB(8784,NYEARS), ASTABLE(8784,NYEARS),
-     &           ANPLVLS(8784,NYEARS), ANTGLVL(8784,NYEARS), 
-     &           AO3CONC(8784,NYEARS), ABGCONC(8784,NYEARS),
-     &           AIFLAG(8784,MXPLVL,NYEARS),
-     &           APFLHT(8784,MXPLVL,NYEARS), APFLWD(8784,MXPLVL,NYEARS),
-     &           APFLWS(8784,MXPLVL,NYEARS), APFLTA(8784,MXPLVL,NYEARS),
-     &           APFLSA(8784,MXPLVL,NYEARS), APFLSW(8784,MXPLVL,NYEARS),
-     &           APFLSV(8784,MXPLVL,NYEARS), APFLTG(8784,MXPLVL,NYEARS),
-     &           APFLTGZ(8784,MXPLVL,NYEARS),
+     &           AURBSTAB(8784,NYEARS), 
+     &           ANTGLVL(8784,NYEARS), 
      &           AGRIDHT(8784,MXGLVL,NYEARS), 
      &           AGRIDWD(8784,MXGLVL,NYEARS),
      &           AGRIDWS(8784,MXGLVL,NYEARS), 
@@ -5025,10 +5230,6 @@ C        Calculate Approximate Allocated Storage Requirements
      &           AGRIDSV(8784,MXGLVL,NYEARS),
      &           AGRIDTG(8784,MXGLVL,NYEARS),
      &           AGRIDPT(8784,MXGLVL,NYEARS),
-C---  Add density profile for PRIME
-     &           AGRIDRHO(8784,MXGLVL,NYEARS),
-C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
-     &           AGRIDEPS(8784,MXGLVL,NYEARS),
      &           AUATZI(8784,NYEARS),
      &           ASVATZI(8784,NYEARS),
      &           ASWATZI(8784,NYEARS),
@@ -5037,6 +5238,8 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
      &           ASWAVG(8784,NYEARS),
      &           APTATZI(8784,NYEARS),
      &           ANDX4ZI(8784,NYEARS),
+     &           ARURUSTR(8784,NYEARS),
+     &           ARUROBULEN(8784,NYEARS),
      &           STAT=IASTAT)
          IF (IASTAT .NE. 0) THEN
             WRITE(DUMMY,'(I8)') IASTAT
@@ -5046,16 +5249,55 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
                WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
      &                         'MAXDCONT Arrays!'
             END IF
          END IF
+         IF (PVMRM) THEN
+            ALLOCATE( AGRIDEPS(8784,MXGLVL,NYEARS),
+     &                AO3CONC(8784,NYEARS), STAT=IASTAT )
+         END IF
+         IF (OLM) THEN
+            ALLOCATE( AO3CONC(8784,NYEARS), STAT=IASTAT )
+         END IF         
+         IF (L_BACKGRND) THEN
+            ALLOCATE( ABGCONC(8784,NYEARS),STAT=IASTAT )
+         END IF
+         IF (NSEC .GT. 0) THEN
+            ALLOCATE( AGRIDRHO(8784,MXGLVL,NYEARS),STAT=IASTAT )
+         END IF
+         IF (LDGAS .OR. LDPART .OR. LWPART .OR. LWGAS) THEN
+            ALLOCATE( ABOWEN(8784,NYEARS),
+     &           AALBEDO(8784,NYEARS), AWNEW(8784,NYEARS), 
+     &           AWOLD(8784,NYEARS), AESTA(8784,NYEARS), 
+     &           AF2(8784,NYEARS), APREC1(8784,NYEARS), 
+     &           APREC2(8784,NYEARS), APRATE(8784,NYEARS), 
+     &           ARH(8784,NYEARS), ASFCP(8784,NYEARS),AQSW(8784,NYEARS),
+     &           IAPCODE(8784,NYEARS), NACLOUD(8784,NYEARS),STAT=IASTAT)
+         END IF
+            IF (IASTAT .NE. 0) THEN
+               WRITE(DUMMY,'(I8)') IASTAT
+               CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
+               ALLOC_ERR = .TRUE.
+               WRITE(IOUNIT,*) ' '
+               WRITE(IOUNIT,*) '  Error Occurred During Allocation of ',
+     &                         'MAXDCONT Arrays!'
+            END IF
          IF (HOURLY) THEN
             ALLOCATE(
      &           AAQS(8784,NYEARS,NSRC), AAHS(8784,NYEARS,NSRC),
+     &           STAT=IASTAT)
+            IF (NPNT .GT. 0) THEN
+               ALLOCATE(
      &           AAVS(8784,NYEARS,NSRC), AATS(8784,NYEARS,NSRC),
+     &           STAT=IASTAT)
+            END IF
+            IF (NVOL .GT. 0 .OR. NVMAX .GT. 0) THEN
+               ALLOCATE(
      &           AASYINI(8784,NYEARS,NSRC), AASZINI(8784,NYEARS,NSRC),
      &           STAT=IASTAT)
+            END IF
             IF (IASTAT .NE. 0) THEN
                WRITE(DUMMY,'(I8)') IASTAT
                CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
@@ -5064,6 +5306,7 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
                   WRITE(DUMMY,'(I8)') IASTAT
                   CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                   ALLOC_ERR = .TRUE.
+                  WRITE(IOUNIT,*) ' '
                   WRITE(IOUNIT,*) '  Error Occurred During Allocation',
      &                            ' of MAXDCONT Arrays for HOUREMIS!'
                END IF
@@ -5079,6 +5322,11 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
      &           AGRDSVU(8784,MXGLVL,NYEARS,NURB),
      &           AGRDTGU(8784,MXGLVL,NYEARS,NURB), 
      &           AGRDPTU(8784,MXGLVL,NYEARS,NURB),
+     &           AZIURB(8784,NYEARS,NURB),
+     &           AURBWSTR(8784,NYEARS,NURB),
+     &           AURBUSTR(8784,NYEARS,NURB),
+     &           AURBOBULEN(8784,NYEARS,NURB),
+     &           AL_MorningTrans(8784,NYEARS,NURB),
      &           STAT=IASTAT)
             IF (IASTAT .NE. 0) THEN
                WRITE(DUMMY,'(I8)') IASTAT
@@ -5088,6 +5336,7 @@ C---  Add tubulence dissipation rate (epsilon) profile for PVMRM
                   WRITE(DUMMY,'(I8)') IASTAT
                   CALL ERRHDL(PATH,MODNAM,'E','299',DUMMY)
                   ALLOC_ERR = .TRUE.
+                  WRITE(IOUNIT,*) ' '
                   WRITE(IOUNIT,*) '  Error Occurred During Allocation',
      &                            ' of MAXDCONT Arrays for URBANOPT!'
                END IF
@@ -5521,6 +5770,17 @@ C        PROGRAMMER: Roger Brode
 C
 C        DATE:    September 24, 1996
 C
+C        MODIFIED:   Added new NUMYEARS option to specify the number
+C                    of years of met data for allocating arrays for 
+C                    the MAXDCONT option. The default number of years
+C                    is still five (5) years.
+C                    Also modified to allow for the use of URBANSRC ALL 
+C                    on the SO pathway to indicate that all sources are 
+C                    to be treated as URBAN sources. This option assumes 
+C                    that only one (1) urban area has been defined using 
+C                    the CO URBANOPT keyword.
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C
 C        MODIFIED:   Added calculation of STORE, estimated memory
 C                    storage requirements, to report if allocation
 C                    errors occur.
@@ -5606,6 +5866,8 @@ C     Counters for the Receptor Groups
 C     Initialize logical for urban option and multiple urban areas
       L_PRESET_URBAN = .FALSE.
       L_MULTURB      = .FALSE.
+C     Initialize logical for the 'URBANSRC ALL' option
+      L_URBAN_ALL    = .FALSE.
 C     Initialize file format to 'FIX'; will be overridden if
 C     user specified 'EXP' format on OU FILEFORM keyword
       FILE_FORMAT = 'FIX'
@@ -5704,7 +5966,7 @@ C                    would be overwritten in SRCSIZ
             ELSE IF (KEYWRD .EQ. 'URBANOPT') THEN
                NURB = NURB + 1
 C----          Set preliminary flag for URBAN option, used to allow flexibility in 
-C              oder of CO pathway keywords for URBANOPT
+C              order of CO pathway keywords for URBANOPT
                L_PRESET_URBAN = .TRUE.
                IF (NURB .GT. 1) THEN
                   L_MULTURB = .TRUE.
@@ -5759,6 +6021,15 @@ C              ozone concentrations for O3VALUES keyword
          ELSE IF (PATH .EQ. 'ME' .AND. KEYWRD .EQ. 'SURFDATA') THEN
 C           Read start year from SURFDATA card to establish date window
             CALL SET_WINDOW
+
+         ELSE IF (PATH .EQ. 'ME' .AND. KEYWRD .EQ. 'NUMYEARS') THEN
+C ---       Set number of years for allocating the MAXDCONT arrays
+            IF (IFC .EQ. 3) THEN
+               CALL STONUM(FIELD(3),ILEN_FLD,FNUM,IMIT)
+               IF (IMIT .EQ. 1) THEN
+                  NYEARS = NINT(FNUM)
+               END IF
+            END IF
 
          ELSE IF (PATH .EQ. 'OU') THEN
             IF(KEYWRD .EQ. 'RECTABLE') THEN
@@ -5944,38 +6215,6 @@ C     Assign array limits to REAL for calculation of STORE
       RVMAX  = REAL(NVMAX)
       RPAIR  = REAL(NPAIR)
       RHIANN = REAL(NHIANN)
-
-      STORE = 0.0
-      IF (.NOT. EVONLY) THEN
-C        Calculate Approximate Allocated Storage Requirements
-         STORE = RSRC*(54.+RQF+5.*RSEC+5.*RPDMAX+2.*RVMAX+RGRP+RURB) +
-     &           RPDMAX*14. +
-     &           RREC*(9.+RVAL*RGRP*RAVE*RTYP*2.25+RGRP*RAVE*RTYP+
-     &                 2.*RGRP*RTYP+RGRP) +
-     &           RARC*20. +
-     &           RNET*(9.+RXM+RYM) +
-     &           RVAL*(RGRP*RAVE*RTYP*3.25+3.*RGRP*RAVE+RGRP*RTYP*2.+
-     &                   RAVE) +
-     &           RMAX*(RGRP*RAVE*RTYP*3.25) +
-     &           RHIANN*2.*RGRP*RTYP +
-     &           RAVE*(12.+2.*RPAIR+3.*RVAL*RGRP+8.*RGRP) +
-     &           RGRP*11. + RTYP*38. + RVMAX*20.
-         IF (SEASONHR) THEN
-            STORE = STORE + 4.*24.*RREC*RGRP*RTYP
-         END IF
-         IF (PVMRM .OR. OLM) THEN
-            STORE = STORE + RSRC + RSRC*RREC*RTYP
-            IF (PVMRM) THEN
-               STORE = STORE + 5.*RSRC*RREC + RSRC
-               IF (PSDCREDIT) THEN
-                  STORE = STORE + RSRC*(2.+RPSD) + RREC*2.*RTYP
-               END IF
-            ELSE IF (OLM) THEN
-               STORE = STORE + ROLM*RSRC + ROLM + RSRC
-            END IF
-         END IF
-         STORE = STORE*8./1.048576E6 + 3.5
-      END IF
 
       RETURN
       END
@@ -6187,6 +6426,13 @@ C        PROGRAMMER: Roger Brode
 C
 C        DATE:    September 24, 1996
 C
+C        MODIFIED:   Modified to allow for the use of URBANSRC ALL on 
+C                    the SO pathway to indicate that all sources are 
+C                    to be treated as URBAN sources. This option assumes 
+C                    that only one (1) urban area has been defined using 
+C                    the CO URBANOPT keyword.
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C
 C        MODIFIED:   To include options to vary emissions by
 C                    hour-of-day, and day-of-week (HRDOW and HRDOW7).
 C                    Modified method for determining maximum number
@@ -6239,6 +6485,8 @@ C        Initialize Counters and Set Status Switch
          NBF  = 0
          NSEC = 0
          NPIT = 0
+         NPNT = 0
+         NVOL = 0
          NAREA = 0
          NPOLY = 0
          NCIRC = 0
@@ -6251,7 +6499,11 @@ C        Initialize Counters and Set Status Switch
 
       ELSE IF (KEYWRD .EQ. 'LOCATION') THEN
          NSRC = NSRC + 1
-         IF (FIELD(4)(1:4) .EQ. 'AREA') THEN
+         IF (FIELD(4) .EQ. 'POINT') THEN
+            NPNT = NPNT + 1
+         ELSE IF (FIELD(4) .EQ. 'VOLUME') THEN
+            NVOL = NVOL + 1
+         ELSE IF (FIELD(4)(1:4) .EQ. 'AREA') THEN
             NAREA = NAREA + 1
             IF (FIELD(4) .EQ. 'AREAPOLY') THEN
                NPOLY = NPOLY + 1
@@ -6405,6 +6657,19 @@ C           particle size categories for this source
             NBF = MAX( NBF, 2016)
          END IF
 
+      ELSE IF (KEYWRD .EQ. 'URBANSRC' .AND. 
+     &                     IFC .EQ. 3 .AND. FIELD(3) .EQ. 'ALL'
+     &                                .AND. L_PRESET_URBAN) THEN
+         IF (.NOT. L_MULTURB) THEN
+C           Set logical for URBANSRC ALL option (not applicable for
+C           multiple urban areas)
+            L_URBAN_ALL = .TRUE.
+         ELSE 
+C           Issue ERROR message for URBANSRC ALL option with multiple 
+C           urban areas
+            CALL ERRHDL(PATH,MODNAM,'E','279','URBANSRC ALL')
+         END IF
+      
       ELSE IF (KEYWRD .EQ. 'OLMGROUP') THEN
          IF (NOLM .EQ. 0) PREVGRPID = '        '
          IF (FIELD(3) .NE. PREVGRPID) THEN
@@ -7252,6 +7517,17 @@ C        PROGRAMMER: Roger W. Brode
 C
 C        DATE:       February 28, 2011
 C
+C        MODIFIED:   Modified subroutine MAXDCONT_LOOP to correct problems 
+C                    with the MAXDCONT option for applications that vary 
+C                    emissions (EMISFACT), background ozone data (O3VALUES), 
+C                    or background concentrations (BACKGRND) with a day-of-week 
+C                    component, e.g., SHRDOW or SHRDOW7, etc. Also modified 
+C                    subroutine MAXDCONT_LOOP to include checks on the 
+C                    consistency between results in the SUMVAL_MAXD and 
+C                    SUMHNH arrays for the "target" source group under 
+C                    the MAXDCONT option. 
+C                    R.W. Brode, U.S. EPA/OAQPS/AQMG, 02/29/2012
+C
 C        INPUTS:  
 C
 C        OUTPUTS: 
@@ -7428,6 +7704,8 @@ C ---                   Set other global date variables for this hour
                         IMONTH = IMN
                         IDAY   = IDY
                         IHOUR  = IHR
+                        IYEAR  = ICYR2    ! 2-digit year
+                        IYR    = ICYR     ! 4-digit year
                         KURDAT = ICYR2*1000000 + IMONTH*10000 + 
      &                           IDAY*100 + IHOUR
                         KURPFL = KURDAT
@@ -7464,6 +7742,18 @@ C                    to get averages across number of years modeled
      &               SUMVAL_MAXD(IVAL,IG,JGRP,IR)/
      &                               DBLE(NUMYRS)
                   END DO
+
+C ---             Check for consistency of SUMVAL_MAXD and SUMHNH arrays for
+C                 "target" source group under MAXDCONT option
+                  IF (.NOT. MAXDWARN .AND. 
+     &                DABS( SUMVAL_MAXD(IVAL,JGRP,JGRP,IR)-
+     &                      SUMHNH(IR,JGRP,IVAL) ) .GT. 1.0D-5) THEN
+C ---                Arrays don't match; issue warning message indicating
+C                    potential coding error; set MAXDWARN flag to stop 
+C                    additional warnings.
+                     CALL ERRHDL(PATH,MODNAM,'W','498',GRPID(JGRP))
+                     MAXDWARN = .TRUE.
+                  END IF
 C              
                END DO   ! end loop over receptors
 
@@ -7564,36 +7854,32 @@ C     Set Meteorological Variables for This Hour
       OBULEN = AOBULEN(IHR_NDX,IYR_NDX)
       VPTGZI = AVPTGZI(IHR_NDX,IYR_NDX)
       SFCZ0  = ASFCZ0(IHR_NDX,IYR_NDX)
-      BOWEN  = ABOWEN(IHR_NDX,IYR_NDX)
-      ALBEDO = AALBEDO(IHR_NDX,IYR_NDX)
-      IPCODE = IAPCODE(IHR_NDX,IYR_NDX)
-      PRATE  = APRATE(IHR_NDX,IYR_NDX)
-      RH     = ARH(IHR_NDX,IYR_NDX)
-      SFCP   = ASFCP(IHR_NDX,IYR_NDX)
-      NCLOUD = NACLOUD(IHR_NDX,IYR_NDX)
-      QSW    = AQSW(IHR_NDX,IYR_NDX)
-      Wnew   = AWnew(IHR_NDX,IYR_NDX)
-      f2     = Af2(IHR_NDX,IYR_NDX)
-      EsTa   = AEsTa(IHR_NDX,IYR_NDX)
-      Prec1  = APrec1(IHR_NDX,IYR_NDX)
-      Prec2  = APrec2(IHR_NDX,IYR_NDX)
-
-      NPLVLS = ANPLVLS(IHR_NDX,IYR_NDX)
-
-      IFLAG(1:NPLVLS) = AIFLAG(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLHT(1:NPLVLS) = APFLHT(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLWD(1:NPLVLS) = APFLWD(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLWS(1:NPLVLS) = APFLWS(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLTA(1:NPLVLS) = APFLTA(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLSA(1:NPLVLS) = APFLSA(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLSV(1:NPLVLS) = APFLSV(IHR_NDX,1:NPLVLS,IYR_NDX)
-      PFLSW(1:NPLVLS) = APFLSW(IHR_NDX,1:NPLVLS,IYR_NDX)
+      
+      IF (LDGAS .OR. LDPART .OR. LWPART .OR. LWGAS) THEN
+         BOWEN  = ABOWEN(IHR_NDX,IYR_NDX)
+         ALBEDO = AALBEDO(IHR_NDX,IYR_NDX)
+         IPCODE = IAPCODE(IHR_NDX,IYR_NDX)
+         PRATE  = APRATE(IHR_NDX,IYR_NDX)
+         RH     = ARH(IHR_NDX,IYR_NDX)
+         SFCP   = ASFCP(IHR_NDX,IYR_NDX)
+         NCLOUD = NACLOUD(IHR_NDX,IYR_NDX)
+         QSW    = AQSW(IHR_NDX,IYR_NDX)
+         Wnew   = AWnew(IHR_NDX,IYR_NDX)
+         f2     = Af2(IHR_NDX,IYR_NDX)
+         EsTa   = AEsTa(IHR_NDX,IYR_NDX)
+         Prec1  = APrec1(IHR_NDX,IYR_NDX)
+         Prec2  = APrec2(IHR_NDX,IYR_NDX)
+      END IF
+      
+      RURUSTR   = ARURUSTR(IHR_NDX,IYR_NDX)  
+      RUROBULEN = ARUROBULEN(IHR_NDX,IYR_NDX)
 
       CLMHR = ACLMHR(IHR_NDX,IYR_NDX)
       MSGHR = AMSGHR(IHR_NDX,IYR_NDX)
       
-      UNSTAB = AUNSTAB(IHR_NDX,IYR_NDX)
-      STABLE = ASTABLE(IHR_NDX,IYR_NDX)
+      UNSTAB  = AUNSTAB(IHR_NDX,IYR_NDX)
+      STABLE  = ASTABLE(IHR_NDX,IYR_NDX)
+      URBSTAB = AURBSTAB(IHR_NDX,IYR_NDX)
 
       NDX4ZI = ANDX4ZI(IHR_NDX,IYR_NDX)
       UATZI  = AUATZI(IHR_NDX,IYR_NDX)  
@@ -7610,8 +7896,13 @@ C     Set Meteorological Variables for This Hour
       GRIDSV(1:MXGLVL)  = AGRIDSV(IHR_NDX,1:MXGLVL,IYR_NDX)
       GRIDTG(1:MXGLVL)  = AGRIDTG(IHR_NDX,1:MXGLVL,IYR_NDX)
       GRIDPT(1:MXGLVL)  = AGRIDPT(IHR_NDX,1:MXGLVL,IYR_NDX)
-      GRIDRHO(1:MXGLVL) = AGRIDRHO(IHR_NDX,1:MXGLVL,IYR_NDX)
-      GRIDEPS(1:MXGLVL) = AGRIDEPS(IHR_NDX,1:MXGLVL,IYR_NDX)
+      IF (NSEC .GT. 0) THEN
+         GRIDRHO(1:MXGLVL) = AGRIDRHO(IHR_NDX,1:MXGLVL,IYR_NDX)
+      END IF
+      IF (PVMRM) THEN
+         GRIDEPS(1:MXGLVL) = AGRIDEPS(IHR_NDX,1:MXGLVL,IYR_NDX)
+      END IF
+      
       IF (NURB .GT. 0) THEN
          GRDSWR(1:MXGLVL) = AGRDSWR(IHR_NDX,1:MXGLVL,IYR_NDX) 
          GRDSVR(1:MXGLVL) = AGRDSVR(IHR_NDX,1:MXGLVL,IYR_NDX)
@@ -7623,6 +7914,11 @@ C     Set Meteorological Variables for This Hour
             GRDSVU(1:MXGLVL,I) = AGRDSVU(IHR_NDX,1:MXGLVL,IYR_NDX,I)
             GRDTGU(1:MXGLVL,I) = AGRDTGU(IHR_NDX,1:MXGLVL,IYR_NDX,I) 
             GRDPTU(1:MXGLVL,I) = AGRDPTU(IHR_NDX,1:MXGLVL,IYR_NDX,I)
+            ZIURB(I)           = AZIURB(IHR_NDX,IYR_NDX,I)    
+            URBWSTR(I)         = AURBWSTR(IHR_NDX,IYR_NDX,I)  
+            URBUSTR(I)         = AURBUSTR(IHR_NDX,IYR_NDX,I)  
+            URBOBULEN(I)       = AURBOBULEN(IHR_NDX,IYR_NDX,I)
+            L_MorningTrans(I)  = AL_MorningTrans(IHR_NDX,IYR_NDX,I)
          END DO
       END IF
       

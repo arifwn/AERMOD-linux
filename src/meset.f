@@ -6,7 +6,21 @@ C        PURPOSE: To process MEteorology Pathway Card Images
 C
 C        PROGRAMMER: Roger Brode, Jeff Wang
 C
-C        DATE:    March 2, 1992
+C        DATE:       March 2, 1992
+C
+C        MODIFIED:   To allow the user to specify the number of years of 
+C                    meteorological data that are being processed for a 
+C                    particular run.  The option is exercised with the 
+C                    new NUMYEARS keyword on the ME pathway. The value 
+C                    specified on the NUMYEARS keyword is used to allocate 
+C                    storage for the arrays that are used in the MAXDCONT 
+C                    option, and allows the user to reduce the memory storage 
+C                    requirements under the MAXDCONT option when less than 
+C                    five (5) years of met data are being used. The default 
+C                    number of years used for the MAXDCONT array allocation 
+C                    without the NUMYEARS keyword is still 5 years (formerly 
+C                    specified by the NYEARS PARAMETER).
+C                    R. Brode, US EPA, OAQPS, AQMG, 02/29/2012
 C
 C        MODIFIED:   To remove support for unformatted meteorological
 C                    data files.
@@ -171,6 +185,17 @@ C           WRITE Error Message: Non-repeatable Keyword
          ELSE
 C           Process Wind Speed Categories                   ---   CALL SCIMIT
             CALL SCIMIT
+         END IF
+
+      ELSE IF (KEYWRD .EQ. 'NUMYEARS') THEN
+C        Set Status Switch
+         IMSTAT(13) = IMSTAT(13) + 1
+         IF (IMSTAT(13) .NE. 1) THEN
+C           WRITE Error Message: Non-repeatable Keyword
+            CALL ERRHDL(PATH,MODNAM,'E','135',KEYWRD)
+         ELSE
+C           Process Number of Years for MAXDCONT arrays     ---  CALL NUMYR
+            CALL NUMYR
          END IF
 
       ELSE IF (KEYWRD .EQ. 'FINISHED') THEN
@@ -1045,7 +1070,7 @@ C        WRITE Error Message    ! Invalid End Year
 
 C     Check for STARTEND period less than a complete year if 
 C     ANNUAL average is specified
-      IF (ANNUAL .OR. MULTYR) THEN
+      IF (ANNUAL .OR. MULTYR .OR. L_MAXDCONT) THEN
 C        First check for End Year = Start Year,
 C        then for End Year = Start Year + 1, otherwise 
 C        if End Year - Start Year > 1 no further checks needed
@@ -1755,3 +1780,58 @@ C        WRITE Error Message           ! Not Enough Parameters
 
       RETURN
       END
+
+      SUBROUTINE NUMYR
+C***********************************************************************
+C                 NUMYR Module of the AMS/EPA Regulatory Model - AERMOD
+C
+C     PURPOSE:    Processes optional keyword to specify the number of
+C                 years in the input meteorological data files to
+C                 adjust arrays sizes for the MAXDCONT option
+C
+C     PROGRAMMER: Roger Brode, U.S. EPA, OAQPS, AQMG
+C
+C        DATE:    February 29, 2012
+C
+C     INPUTS:     Input Runstream Image Parameters
+C
+C     OUTPUT:     Wind Direction Rotation Angle
+C
+C     CALLED FROM:   MECARD
+C
+C     ERROR HANDLING:   Checks for No Parameters;
+C                       Checks for Too Many Parameters;
+C                       Checks for Invalid Numeric Field
+C***********************************************************************
+
+C     Variable Declarations
+      USE MAIN1
+      IMPLICIT NONE
+      CHARACTER MODNAM*12
+
+C     Variable Initializations
+      MODNAM = 'NUMYR'
+     
+      IF (IFC .EQ. 3) THEN
+         CALL STONUM(FIELD(3),ILEN_FLD,FNUM,IMIT)
+         IF (IMIT .NE. 1) THEN
+C           WRITE Error Message  ! Invalid Numeric Field Encountered
+            CALL ERRHDL(PATH,MODNAM,'E','208',KEYWRD)
+         ELSE
+            NYEARS = NINT(FNUM)
+            IF ( ABS(FNUM-REAL(NYEARS)) .GT. 1.0E-5 ) THEN
+C              WRITE Error Message  ! Invalid Numeric Field, should be integer
+               CALL ERRHDL(PATH,MODNAM,'E','208',KEYWRD)
+            END IF
+         END IF
+      ELSE IF (IFC .GT. 3) THEN
+C        WRITE Error Message           ! Too Many Parameters
+         CALL ERRHDL(PATH,MODNAM,'E','202',KEYWRD)
+      ELSE
+C        WRITE Error Message           ! No Parameters
+         CALL ERRHDL(PATH,MODNAM,'E','200',KEYWRD)
+      END IF
+
+ 999  RETURN
+      END
+
